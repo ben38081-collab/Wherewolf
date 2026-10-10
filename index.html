@@ -33,6 +33,17 @@
         <p class="text-xs text-slate-400 mt-1">เล่นเรียลไทม์ผ่านมือถือคนละเครื่อง</p>
     </div>
 
+    <!-- Custom Modal for Notifications -->
+    <div id="custom-modal" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl max-w-xs w-full text-center space-y-4 shadow-2xl">
+            <h3 id="modal-title" class="text-lg font-bold text-amber-400">แจ้งเตือน</h3>
+            <p id="modal-message" class="text-sm text-slate-300"></p>
+            <button onclick="closeModal()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold rounded-xl transition">
+                ตกลง
+            </button>
+        </div>
+    </div>
+
     <!-- Screen 1: Home / Mode Choice -->
     <div id="home-screen" class="space-y-4">
         <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
@@ -62,7 +73,7 @@
             </select>
         </div>
 
-        <button onclick="createRoom()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl shadow-lg transition">
+        <button id="create-btn" onclick="createRoom()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl shadow-lg transition">
             🎲 ตกลง สร้างห้องเลย
         </button>
         <button onclick="backToHome()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium rounded-xl text-sm">
@@ -238,18 +249,40 @@ const roleDecks = {
     mode3: ["🐺 หมาป่า", "🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน", "🪵 ยาจก"]
 };
 
-// Initialize Auth
+// Custom modal popup helper (replaces alert)
+window.showAlert = (msg, title = "แจ้งเตือน") => {
+    document.getElementById("modal-title").innerText = title;
+    document.getElementById("modal-message").innerText = msg;
+    document.getElementById("custom-modal").classList.remove("hidden");
+};
+
+window.closeModal = () => {
+    document.getElementById("custom-modal").classList.add("hidden");
+};
+
+// Initialize Auth safely
 async function initAuth() {
     try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            const userCred = await signInWithCustomToken(auth, __initial_auth_token);
-            currentUser = userCred.user;
+        if (!auth.currentUser) {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                const userCred = await signInWithCustomToken(auth, __initial_auth_token);
+                currentUser = userCred.user;
+            } else {
+                const userCred = await signInAnonymously(auth);
+                currentUser = userCred.user;
+            }
         } else {
-            const userCred = await signInAnonymously(auth);
-            currentUser = userCred.user;
+            currentUser = auth.currentUser;
         }
     } catch(e) {
         console.error("Auth error:", e);
+        // Fallback anonymous if custom token fails
+        try {
+            const userCred = await signInAnonymously(auth);
+            currentUser = userCred.user;
+        } catch(err) {
+            console.error("Fallback auth error:", err);
+        }
     }
 }
 initAuth();
@@ -271,79 +304,108 @@ window.backToHome = () => {
 };
 
 window.createRoom = async () => {
-    const name = document.getElementById("my-name-input").value.trim() || "ผู้เล่น 1";
-    if (!currentUser) await initAuth();
+    const nameInput = document.getElementById("my-name-input");
+    const name = nameInput.value.trim() || "ผู้เล่น 1";
+    
+    const createBtn = document.getElementById("create-btn");
+    createBtn.disabled = true;
+    createBtn.innerText = "⏳ กำลังสร้างห้อง...";
 
-    const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
-    currentRoomId = roomCode;
-    isHost = true;
+    try {
+        if (!currentUser) {
+            await initAuth();
+        }
+        if (!currentUser) {
+            throw new Error("ยังไม่ได้เชื่อมต่อระบบยืนยันตัวตน กรุณารอสักครู่แล้วลองใหม่");
+        }
 
-    const selectedMode = document.getElementById("game-mode-select").value;
-    const initialData = {
-        code: roomCode,
-        hostId: currentUser.uid,
-        mode: selectedMode,
-        phase: 'lobby', // lobby, reveal, night, day, end
-        nightCount: 1,
-        players: [{
-            id: currentUser.uid,
-            name: name,
-            role: '',
-            alive: true,
-            nightTarget: null,
-            voteTarget: null
-        }],
-        lastKilled: null,
-        protectedId: null,
-        winnerMsg: ''
-    };
+        const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+        currentRoomId = roomCode;
+        isHost = true;
 
-    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-    await setDoc(roomRef, initialData);
+        const selectedMode = document.getElementById("game-mode-select").value;
+        const initialData = {
+            code: roomCode,
+            hostId: currentUser.uid,
+            mode: selectedMode,
+            phase: 'lobby',
+            nightCount: 1,
+            players: [{
+                id: currentUser.uid,
+                name: name,
+                role: '',
+                alive: true,
+                nightTarget: null,
+                voteTarget: null
+            }],
+            lastKilled: null,
+            protectedId: null,
+            winnerMsg: ''
+        };
 
-    subscribeToRoom();
-    showLobbyUI();
+        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+        await setDoc(roomRef, initialData);
+
+        subscribeToRoom();
+        showLobbyUI();
+    } catch(err) {
+        console.error("Create room error:", err);
+        showAlert("เกิดข้อผิดพลาดในการสร้างห้อง: " + err.message);
+    } finally {
+        createBtn.disabled = false;
+        createBtn.innerText = "🎲 ตกลง สร้างห้องเลย";
+    }
 };
 
 window.joinRoom = async () => {
     const name = document.getElementById("my-name-input").value.trim() || "ผู้เล่นใหม่";
     const code = document.getElementById("room-code-input").value.trim();
-    if (!code) return alert("กรุณากรอกรหัสห้อง");
-
-    if (!currentUser) await initAuth();
-    currentRoomId = code;
-
-    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-    const snap = await getDoc(roomRef);
-
-    if (!snap.exists()) {
-        alert("ไม่พบห้องนี้ กรุณาเช็กรหัสอีกครั้ง");
+    if (!code) {
+        showAlert("กรุณากรอกรหัสห้อง 4 หลักก่อนครับ");
         return;
     }
 
-    const data = snap.data();
-    const targetCount = roleDecks[data.mode].length;
+    try {
+        if (!currentUser) await initAuth();
+        if (!currentUser) throw new Error("ยังไม่ได้เชื่อมต่อระบบยืนยันตัวตน");
 
-    if (data.players.length >= targetCount && !data.players.some(p => p.id === currentUser.uid)) {
-        alert("ห้องนี้ผู้เล่นเต็มแล้วครับ");
-        return;
+        currentRoomId = code;
+
+        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+        const snap = await getDoc(roomRef);
+
+        if (!snap.exists()) {
+            showAlert("ไม่พบห้องรหัสนี้ กรุณาเช็กรหัสอีกครั้ง");
+            return;
+        }
+
+        const data = snap.data();
+        const targetCount = roleDecks[data.mode].length;
+
+        if (data.players.length >= targetCount && !data.players.some(p => p.id === currentUser.uid)) {
+            showAlert("ห้องนี้ผู้เล่นเต็มแล้วครับ");
+            return;
+        }
+
+        if (!data.players.some(p => p.id === currentUser.uid)) {
+            data.players.push({
+                id: currentUser.uid,
+                name: name,
+                role: '',
+                alive: true,
+                nightTarget: null,
+                voteTarget: null
+            });
+            await updateDoc(roomRef, { players: data.players });
+        }
+
+        isHost = data.hostId === currentUser.uid;
+        subscribeToRoom();
+        showLobbyUI();
+    } catch(err) {
+        console.error("Join room error:", err);
+        showAlert("เกิดข้อผิดพลาดในการเข้าร่วมห้อง: " + err.message);
     }
-
-    if (!data.players.some(p => p.id === currentUser.uid)) {
-        data.players.push({
-            id: currentUser.uid,
-            name: name,
-            role: '',
-            alive: true,
-            nightTarget: null,
-            voteTarget: null
-        });
-        await updateDoc(roomRef, { players: data.players });
-    }
-
-    isHost = data.hostId === currentUser.uid;
-    subscribeToRoom();
-    showLobbyUI();
 };
 
 function showLobbyUI() {
@@ -374,7 +436,6 @@ function subscribeToRoom() {
 
         updateLobbyStatus(data);
 
-        // Router base on phase
         if (data.phase === 'reveal') renderRoleRevealPhase(data);
         else if (data.phase === 'night') renderNightPhase(data);
         else if (data.phase === 'day') renderDayPhase(data);
@@ -413,7 +474,6 @@ window.startGameOnline = async () => {
     if (!isHost || !roomStateData) return;
 
     let deck = [...roleDecks[roomStateData.mode]];
-    // Shuffle deck
     for (let i = deck.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -441,7 +501,7 @@ function renderRoleRevealPhase(data) {
     if (isHost) document.getElementById("host-night-start-btn").classList.remove("hidden");
 
     let extraText = "";
-    if (myPlayerData.role.includes("หมาป่า")) {
+    if (myPlayerData && myPlayerData.role.includes("หมาป่า")) {
         const wolves = data.players.filter(p => p.role.includes("หมาป่า")).map(p => p.name).join(", ");
         extraText = `🐺 ทีมหมาป่าของคุณคือ: <b>${wolves}</b>`;
     } else {
@@ -483,7 +543,7 @@ function renderNightPhase(data) {
 
     selectElem.innerHTML = "";
 
-    if (!myPlayerData.alive) {
+    if (!myPlayerData || !myPlayerData.alive) {
         actionTitle.innerText = "👻 คุณเสียชีวิตแล้ว (รอรุ่งเช้า)";
         selectElem.classList.add("hidden");
         document.getElementById("submit-night-action-btn").classList.add("hidden");
@@ -530,7 +590,6 @@ window.submitMyNightAction = async () => {
         }
     }
 
-    // Save target to Firestore
     const updatedPlayers = roomStateData.players.map(p => {
         if (p.id === currentUser.uid) {
             return { ...p, nightTarget: val };
@@ -540,7 +599,7 @@ window.submitMyNightAction = async () => {
 
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
     await updateDoc(roomRef, { players: updatedPlayers });
-    alert("บันทึกคำสั่งของคุณแล้ว!");
+    showAlert("บันทึกคำสั่งของคุณแล้ว!");
 };
 
 window.closeSeerModal = () => {
@@ -593,7 +652,7 @@ function renderDayPhase(data) {
     const voteSelect = document.getElementById("day-vote-select");
     voteSelect.innerHTML = `<option value="none">⚖️ ไม่โหวตออกใคร (งดออกเสียง)</option>`;
 
-    if (!myPlayerData.alive) {
+    if (!myPlayerData || !myPlayerData.alive) {
         voteSelect.classList.add("hidden");
         document.getElementById("submit-vote-btn").classList.add("hidden");
         return;
@@ -618,7 +677,7 @@ window.submitDayVote = async () => {
 
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
     await updateDoc(roomRef, { players: updatedPlayers });
-    alert("บันทึกผลโหวตของคุณเรียบร้อยแล้ว!");
+    showAlert("บันทึกผลโหวตของคุณเรียบร้อยแล้ว!");
 };
 
 window.hostCalculateVotes = async () => {
@@ -648,7 +707,6 @@ window.hostCalculateVotes = async () => {
         if (votedUser) {
             votedUser.alive = false;
             
-            // Beggar win condition check
             if (votedUser.role.includes("ยาจก")) {
                 finishGame(`🪵 ยาจก (${votedUser.name}) ชนะเกมนี้! (ถูกโหวตออกสำเร็จ)`);
                 return;
@@ -705,7 +763,6 @@ function renderEndPhase(data) {
     });
     document.getElementById("end-roles-list").innerHTML = rolesHtml;
 
-    // Speech Announce
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance("จบเกมแล้วครับ " + data.winnerMsg);
