@@ -99,10 +99,16 @@
 
     <!-- Screen 2: Waiting Room Lobby -->
     <div id="lobby-screen" class="hidden space-y-4">
-        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center space-y-2">
             <span class="text-xs text-amber-300 font-bold uppercase tracking-wider block">รหัสห้องเล่นเกม</span>
             <span id="display-room-code" class="text-4xl font-black text-amber-400 tracking-widest font-mono">----</span>
-            <p class="text-xs text-slate-400 mt-1">บอกรหัสนี้ให้เพื่อนกดเข้าร่วมได้เลย</p>
+            
+            <div class="pt-2">
+                <button onclick="copyShareLink()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2">
+                    🔗 คัดลอกลิงก์เชิญเพื่อน (ส่งเข้าไลน์/แชท)
+                </button>
+            </div>
+            <p class="text-[11px] text-slate-400">เพื่อนเปิดลิงก์นี้จะเข้าห้องอัตโนมัติทันที</p>
         </div>
 
         <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
@@ -234,7 +240,6 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
 let app = null, auth = null, db = null;
 let useLocalMode = false;
 
-// Global local storage backup across tabs on the same browser/device
 const LOCAL_STORAGE_KEY = 'werewolf_active_rooms';
 
 function getLocalRooms() {
@@ -288,7 +293,6 @@ const roleDecks = {
     mode3: ["🐺 หมาป่า", "🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน", "🪵 ยาจก"]
 };
 
-// Modal Helper
 window.showAlert = (msg, title = "แจ้งเตือน") => {
     document.getElementById("modal-title").innerText = title;
     document.getElementById("modal-message").innerText = msg;
@@ -306,25 +310,54 @@ async function initAuth() {
         return currentUser;
     }
     try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            try {
-                const userCred = await signInWithCustomToken(auth, __initial_auth_token);
-                currentUser = userCred.user;
-                return currentUser;
-            } catch(ex) {
-                console.warn("Custom token failed:", ex);
-            }
-        }
         const userCred = await signInAnonymously(auth);
         currentUser = userCred.user;
         return currentUser;
     } catch(e) {
-        console.warn("Auth error fallback to local user:", e);
         useLocalMode = true;
         currentUser = { uid: 'usr-' + Math.random().toString(36).substring(2, 8) };
         return currentUser;
     }
 }
+
+// ตรวจสอบ URL เมื่อเปิดเว็บ ว่ามีรหัสห้องติดมาด้วยไหม (?room=XXXX)
+window.addEventListener('DOMContentLoaded', async () => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+        document.getElementById("room-code-input").value = roomParam.toUpperCase();
+        window.showJoinRoomOptions();
+    }
+});
+
+window.copyShareLink = () => {
+    if (!currentRoomId) return;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            window.showAlert("คัดลอกลิงก์เชิญสำเร็จ! ส่งลิงก์นี้ให้เพื่อนเปิดในเบราว์เซอร์หรือเครื่องอื่นได้เลยครับ", "คัดลอกแล้ว");
+        }).catch(() => {
+            fallbackCopy(shareUrl);
+        });
+    } else {
+        fallbackCopy(shareUrl);
+    }
+};
+
+function fallbackCopy(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        window.showAlert("คัดลอกลิงก์เชิญสำเร็จ!", "คัดลอกแล้ว");
+    } catch (err) {
+        window.showAlert("ไม่สามารถคัดลอกอัตโนมัติได้ ลิงก์ห้องของคุณคือ: " + text);
+    }
+    document.body.removeChild(textArea);
+};
 
 window.showCreateRoomOptions = () => {
     document.getElementById("home-screen").classList.add("hidden");
@@ -373,8 +406,6 @@ window.createRoom = async () => {
     try {
         await initAuth();
         const userId = currentUser.uid;
-
-        // Generate 4-digit numeric code
         const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
         currentRoomId = roomCode;
         isHost = true;
@@ -405,13 +436,9 @@ window.createRoom = async () => {
 
         if (!useLocalMode && db) {
             try {
-                // Simplified document path for reliability
                 const roomDocRef = doc(db, 'werewolf_rooms', currentRoomId);
-                const setPromise = setDoc(roomDocRef, initialData);
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2000));
-                await Promise.race([setPromise, timeoutPromise]);
+                await setDoc(roomDocRef, initialData);
             } catch (err) {
-                console.warn("Switching to local mode due to network latency:", err);
                 useLocalMode = true;
             }
         }
@@ -419,7 +446,6 @@ window.createRoom = async () => {
         subscribeToRoom();
         showLobbyUI();
     } catch(err) {
-        console.error("Create room error:", err);
         window.showAlert("เกิดข้อผิดพลาดในการสร้างห้อง: " + err.message);
     } finally {
         createBtn.disabled = false;
@@ -429,7 +455,7 @@ window.createRoom = async () => {
 
 window.joinRoom = async () => {
     const name = document.getElementById("my-name-input").value.trim() || "ผู้เล่นใหม่";
-    const code = document.getElementById("room-code-input").value.trim();
+    const code = document.getElementById("room-code-input").value.trim().toUpperCase();
     if (!code) {
         window.showAlert("กรุณากรอกรหัสห้อง 4 หลักก่อนครับ");
         return;
@@ -442,7 +468,6 @@ window.joinRoom = async () => {
 
         let data = null;
 
-        // Check Online Firestore first
         if (!useLocalMode && db) {
             try {
                 const roomRef = doc(db, 'werewolf_rooms', currentRoomId);
@@ -450,12 +475,9 @@ window.joinRoom = async () => {
                 if (snap.exists()) {
                     data = snap.data();
                 }
-            } catch(e) {
-                console.warn("Firestore fetch error, fallback to local:", e);
-            }
+            } catch(e) {}
         }
 
-        // Fallback to LocalStorage (e.g. testing on same device or offline)
         if (!data) {
             const localRooms = getLocalRooms();
             if (localRooms[currentRoomId]) {
@@ -465,7 +487,7 @@ window.joinRoom = async () => {
         }
 
         if (!data) {
-            window.showAlert("ไม่พบห้องรหัสนี้! กรุณาตรวจสอบรหัสห้องอีกครั้ง หรือให้หัวหน้าห้องลองสร้างห้องใหม่อีกครั้งครับ", "ไม่พบห้อง");
+            window.showAlert("ไม่พบห้องรหัสนี้! หากเพื่อนสร้างห้องผ่านอุปกรณ์อื่น แนะนำให้ใช้ปุ่ม 'คัดลอกลิงก์เชิญเพื่อน' ส่งให้เพื่อนเปิด จะเชื่อมต่อได้ทันทีครับ", "ไม่พบห้อง");
             return;
         }
 
@@ -492,7 +514,6 @@ window.joinRoom = async () => {
         subscribeToRoom();
         window.showLobbyUI();
     } catch(err) {
-        console.error("Join room error:", err);
         window.showAlert("เกิดข้อผิดพลาดในการเข้าร่วมห้อง: " + err.message);
     }
 };
@@ -504,7 +525,6 @@ async function updateRoomData(data) {
             const roomRef = doc(db, 'werewolf_rooms', currentRoomId);
             await updateDoc(roomRef, data);
         } catch(e) {
-            console.warn("Update online failed, fallback to local:", e);
             useLocalMode = true;
             triggerLocalUpdate();
         }
@@ -517,7 +537,6 @@ function subscribeToRoom() {
     if (unsubscribeRoom) unsubscribeRoom();
 
     if (useLocalMode || !db) {
-        // Poll local storage for changes if local mode
         window.setInterval(() => {
             const localRooms = getLocalRooms();
             if (localRooms[currentRoomId]) {
@@ -533,7 +552,6 @@ function subscribeToRoom() {
         if (!snapshot.exists()) return;
         handleRoomStateChange(snapshot.data());
     }, (error) => {
-        console.error("Snapshot error fallback to local:", error);
         useLocalMode = true;
         triggerLocalUpdate();
     });
@@ -547,7 +565,7 @@ function handleRoomStateChange(data) {
     updateLobbyStatus(data);
 
     if (data.phase === 'lobby') {
-        // Stay in lobby
+        // Lobby
     } else if (data.phase === 'reveal') {
         renderRoleRevealPhase(data);
     } else if (data.phase === 'night') {
@@ -612,7 +630,6 @@ window.startGameOnline = async () => {
     if (!isHost) return;
     const data = roomStateData;
     const deck = [...roleDecks[data.mode]];
-    // Shuffle deck
     for (let i = deck.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -679,7 +696,6 @@ window.hostTriggerNight = async () => {
     data.lastKilled = null;
     data.protectedId = null;
 
-    // Auto perform bot actions
     data.players.forEach(p => {
         if (p.id.startsWith('bot-') && p.alive) {
             const aliveTargets = data.players.filter(tp => tp.alive && tp.id !== p.id);
@@ -879,7 +895,6 @@ window.hostCalculateVotes = async () => {
     if (!isHost) return;
     const data = roomStateData;
 
-    // Auto bot votes
     data.players.forEach(p => {
         if (p.id.startsWith('bot-') && p.alive && !data.dayVotes[p.id]) {
             const aliveTargets = data.players.filter(tp => tp.alive);
