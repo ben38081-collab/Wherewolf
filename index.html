@@ -27,7 +27,7 @@
         <h1 class="text-3xl font-extrabold text-amber-400 tracking-wide flex items-center justify-center gap-2 mt-4">
             🐺 Werewolf Online
         </h1>
-        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์ Cloud Firestore สดๆ เรียลไทม์ พร้อมเล่นข้ามเครื่อง!</p>
+        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์ Cloud Firestore เรียลไทม์ (แก้ไขชื่อผู้เข้าห้องอัตโนมัติ)</p>
     </div>
 
     <!-- Custom Modal -->
@@ -273,7 +273,6 @@
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Updated configuration with provided Firebase Credentials
     let defaultConfig = {
         apiKey: "AIzaSyCT3WY8061Xgw8BIdEXIxlCmdLKlaeop_Q",
         authDomain: "game-a13b7.firebaseapp.com",
@@ -468,7 +467,11 @@
         try {
             await setDoc(doc(db, "werewolf_rooms", roomCode), initialData);
             listenToRoom(roomCode);
-            enterLobbyScreen(roomCode, initialData);
+            // สลับหน้าจอมาที่ Lobby ทันทีหลังสร้างสำเร็จ
+            document.getElementById('create-room-screen').classList.add('hidden');
+            document.getElementById('lobby-screen').classList.remove('hidden');
+            document.getElementById('display-room-code').innerText = roomCode;
+            renderLobbyPlayers(initialData);
         } catch(err) {
             window.showModal("ข้อผิดพลาด", err.message);
         }
@@ -490,25 +493,33 @@
             if(!snap.exists()) {
                 return window.showModal("แจ้งเตือน", "ไม่พบห้องรหัสนี้ในระบบ Cloud");
             }
-            const data = snap.data();
+            let data = snap.data();
             if(data.status !== 'lobby') {
                 return window.showModal("แจ้งเตือน", "เกมในห้องนี้เริ่มไปแล้ว ไม่สามารถเข้าร่วมได้");
             }
-            if(data.players.length >= data.maxPlayers) {
-                return window.showModal("แจ้งเตือน", "ห้องนี้เต็มแล้ว");
-            }
 
-            // ตรวจสอบว่าผู้เล่นนี้มีอยู่ในห้องแล้วหรือยัง ถ้ายังให้ทำการอัปเดตข้อมูลขึ้น Cloud ทันที
+            // ตรวจสอบว่าผู้เล่นนี้มีอยู่ในห้องหรือยัง
             const existingPlayerIndex = data.players.findIndex(p => p.id === myUserId);
             if (existingPlayerIndex !== -1) {
-                data.players[existingPlayerIndex].name = name; // อัปเดตชื่อใหม่กรณีชื่อเปลี่ยน
+                data.players[existingPlayerIndex].name = name;
             } else {
+                if(data.players.length >= data.maxPlayers) {
+                    return window.showModal("แจ้งเตือน", "ห้องนี้เต็มแล้ว");
+                }
                 data.players.push({ id: myUserId, name: name, role: null, alive: true });
             }
 
             // บันทึกข้อมูลอัปเดตรายชื่อผู้เล่นไปยัง Firestore Realtime
             await setDoc(roomRef, data);
+            
+            // เปิด Real-time listener ทันทีเพื่อให้ซิงก์ข้อมูลอัตโนมัติ
             listenToRoom(code);
+
+            // สลับหน้าจอมาที่ Lobby ทันที
+            document.getElementById('join-room-screen').classList.add('hidden');
+            document.getElementById('lobby-screen').classList.remove('hidden');
+            document.getElementById('display-room-code').innerText = code;
+            renderLobbyPlayers(data);
         } catch(err) {
             window.showModal("ข้อผิดพลาด", err.message);
         }
@@ -528,15 +539,8 @@
         });
     }
 
-    function enterLobbyScreen(code, data) {
-        document.getElementById('create-room-screen').classList.add('hidden');
-        document.getElementById('join-room-screen').classList.add('hidden');
-        document.getElementById('lobby-screen').classList.remove('hidden');
-        document.getElementById('display-room-code').innerText = code;
-        renderLobbyPlayers(data);
-    }
-
     function renderLobbyPlayers(data) {
+        if(!data || !data.players) return;
         const listDiv = document.getElementById('lobby-players-list');
         listDiv.innerHTML = "";
         data.players.forEach((p, idx) => {
@@ -608,6 +612,7 @@
     function updateUIBasedOnRoomState() {
         if(!roomData) return;
 
+        // ซ่อนหน้าจอทั้งหมดก่อน แล้วเปิดเฉพาะหน้าจอตามสถานะห้องปัจจุบัน
         document.getElementById('home-screen').classList.add('hidden');
         document.getElementById('create-room-screen').classList.add('hidden');
         document.getElementById('join-room-screen').classList.add('hidden');
@@ -619,6 +624,7 @@
 
         if(roomData.status === 'lobby') {
             document.getElementById('lobby-screen').classList.remove('hidden');
+            document.getElementById('display-room-code').innerText = currentRoomId;
             renderLobbyPlayers(roomData);
         } else if(roomData.status === 'role_reveal') {
             document.getElementById('role-reveal-screen').classList.remove('hidden');
