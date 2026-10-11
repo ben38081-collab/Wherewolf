@@ -755,10 +755,16 @@
         const alivePlayers = roomData.players.filter(p => p.alive);
 
         if (step === 1) {
+            // เช็กหมาป่าที่ยังรอดชีวิต
             const aliveWolves = alivePlayers.filter(p => p.role.includes("Werewolf"));
-            const allBotWolves = aliveWolves.length > 0 && aliveWolves.every(p => p.id.startsWith('bot_'));
-
-            if (aliveWolves.length === 0 || allBotWolves) {
+            
+            // หากหมาป่าตายหมด หรือ มีแต่บอทหมาป่า ให้ทำแอคชัน/ข้ามทันที
+            if (aliveWolves.length === 0) {
+                // หมาป่าตายหมดแล้ว -> ข้ามไปขั้นตอนที่ 2
+                roomData.nightState.step = 2;
+                actionNeeded = true;
+            } else if (aliveWolves.every(p => p.id.startsWith('bot_'))) {
+                // มีแต่บอทหมาป่า -> บอทสุ่มเลือกเหยื่อ
                 const targetCandidates = alivePlayers.filter(p => !p.role.includes("Werewolf"));
                 const victimPool = targetCandidates.length > 0 ? targetCandidates : alivePlayers;
                 const randomVictim = victimPool[Math.floor(Math.random() * victimPool.length)];
@@ -768,13 +774,19 @@
                 actionNeeded = true;
             }
         } else if (step === 2) {
+            // เช็กผู้หยั่งรู้ที่ยังรอดชีวิต
             const aliveSeer = alivePlayers.find(p => p.role.includes("Seer"));
+            
+            // หากผู้หยั่งรู้ไม่มีอยู่จริง หรือ เสียชีวิตแล้ว หรือ เป็นบอท -> ข้ามไปขั้นตอนที่ 3 ทันที
             if (!aliveSeer || aliveSeer.id.startsWith('bot_')) {
                 roomData.nightState.step = 3;
                 actionNeeded = true;
             }
         } else if (step === 3) {
+            // เช็กบอดี้การ์ดที่ยังรอดชีวิต
             const aliveGuard = alivePlayers.find(p => p.role.includes("Bodyguard"));
+            
+            // หากบอดี้การ์ดไม่มีอยู่จริง หรือ เสียชีวิตแล้ว หรือ เป็นบอท -> ข้ามไปขั้นตอนที่ 4 ทันที
             if (!aliveGuard || aliveGuard.id.startsWith('bot_')) {
                 if (aliveGuard && aliveGuard.id.startsWith('bot_')) {
                     const randomProtect = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
