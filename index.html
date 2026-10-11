@@ -204,7 +204,7 @@
             <p id="narrator-text" class="text-xs text-amber-300 font-semibold bg-indigo-950/60 p-3 rounded-lg border border-indigo-500/30 my-2">กำลังโหลด...</p>
         </div>
 
-        <div id="night-action-box" class="bg-slate-800/90 p-4 rounded-xl border border-indigo-500/30 space-y-3">
+        <div id="night-action-box" class="hidden bg-slate-800/90 p-4 rounded-xl border border-indigo-500/30 space-y-3">
             <div id="night-action-title" class="text-sm font-bold text-amber-300 text-center"></div>
             <select id="night-target-select" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-white focus:outline-none focus:border-amber-400"></select>
             <button id="submit-night-action-btn" onclick="submitMyNightAction()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl transition">
@@ -681,8 +681,14 @@
 
         hostDayBtn.classList.add('hidden');
         waitingStatus.classList.add('hidden');
+        actionBox.classList.add('hidden');
 
         const me = roomData.players.find(p => p.id === myUserId);
+
+        // ตรวจสอบว่า host หรือผู้เล่นเป็นผู้ควบคุมการรันบอท
+        if (roomData.hostId === myUserId) {
+            handleBotNightActions(step);
+        }
 
         if(step === 1) {
             titleElem.innerText = "🌙 ค่ำคืนมาเยือน... หมาป่ากำลังออกล่า";
@@ -692,10 +698,9 @@
                 actionTitle.innerText = "🐺 เลือกเหยื่อที่คุณต้องการสังหาร:";
                 selectElem.innerHTML = "";
                 roomData.players.filter(p => p.alive).forEach(p => {
-                    selectElem.innerHTML += `<option value="${p.id}">${p.name} (${p.role})</option>`;
+                    selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
                 });
             } else {
-                actionBox.classList.add('hidden');
                 waitingStatus.classList.remove('hidden');
             }
         } else if(step === 2) {
@@ -709,7 +714,6 @@
                     selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
                 });
             } else {
-                actionBox.classList.add('hidden');
                 waitingStatus.classList.remove('hidden');
             }
         } else if(step === 3) {
@@ -723,18 +727,61 @@
                     selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
                 });
             } else {
-                actionBox.classList.add('hidden');
                 waitingStatus.classList.remove('hidden');
             }
         } else if(step === 4) {
             titleElem.innerText = "☀️ ค่ำคืนสิ้นสุดลงแล้ว";
             narratorElem.innerText = "รวบรวมผลการกระทำตอนกลางคืนเรียบร้อย";
-            actionBox.classList.add('hidden');
             if(roomData.hostId === myUserId) {
                 hostDayBtn.classList.remove('hidden');
             } else {
                 waitingStatus.classList.remove('hidden');
             }
+        }
+    }
+
+    async function handleBotNightActions(step) {
+        if (!roomData || roomData.hostId !== myUserId) return;
+
+        let actionNeeded = false;
+        const alivePlayers = roomData.players.filter(p => p.alive);
+
+        if (step === 1) {
+            // หมาป่าออกล่า: ถ้าผู้เล่นที่มีบทบาทหมาป่าทุกคนเป็นบอท หรือไม่มีคนเล่นหมาป่ารอดอยู่
+            const aliveWolves = alivePlayers.filter(p => p.role.includes("Werewolf"));
+            const allBotWolves = aliveWolves.length > 0 && aliveWolves.every(p => p.id.startsWith('bot_'));
+
+            if (aliveWolves.length === 0 || allBotWolves) {
+                const targetCandidates = alivePlayers.filter(p => !p.role.includes("Werewolf"));
+                const victimPool = targetCandidates.length > 0 ? targetCandidates : alivePlayers;
+                const randomVictim = victimPool[Math.floor(Math.random() * victimPool.length)];
+                
+                roomData.nightState.killed = randomVictim ? randomVictim.id : null;
+                roomData.nightState.step = 2;
+                actionNeeded = true;
+            }
+        } else if (step === 2) {
+            // ผู้หยั่งรู้ตรวจบทบาท: ถ้าไม่มีผู้หยั่งรู้รอด หรือผู้หยั่งรู้เป็นบอท
+            const aliveSeer = alivePlayers.find(p => p.role.includes("Seer"));
+            if (!aliveSeer || aliveSeer.id.startsWith('bot_')) {
+                roomData.nightState.step = 3;
+                actionNeeded = true;
+            }
+        } else if (step === 3) {
+            // บอดี้การ์ดปกป้อง: ถ้าไม่มีบอดี้การ์ดรอด หรือบอดี้การ์ดเป็นบอท
+            const aliveGuard = alivePlayers.find(p => p.role.includes("Bodyguard"));
+            if (!aliveGuard || aliveGuard.id.startsWith('bot_')) {
+                if (aliveGuard && aliveGuard.id.startsWith('bot_')) {
+                    const randomProtect = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+                    roomData.nightState.protected = randomProtect ? randomProtect.id : null;
+                }
+                roomData.nightState.step = 4;
+                actionNeeded = true;
+            }
+        }
+
+        if (actionNeeded) {
+            await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
         }
     }
 
@@ -785,9 +832,24 @@
         document.getElementById('night-summary-box').innerHTML = roomData.nightSummary || "";
         const voteSelect = document.getElementById('day-vote-select');
         voteSelect.innerHTML = `<option value="none">-- ไม่โหวตใคร (ผ่าน) --</option>`;
-        roomData.players.filter(p => p.alive).forEach(p => {
+        
+        const alivePlayers = roomData.players.filter(p => p.alive);
+        alivePlayers.forEach(p => {
             voteSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
         });
+
+        // สุ่มการโหวตอัตโนมัติสำหรับบอททุกตัว
+        if (roomData.hostId === myUserId) {
+            alivePlayers.forEach(p => {
+                if (p.id.startsWith('bot_') && !roomData.votes[p.id]) {
+                    const candidates = alivePlayers.filter(target => target.id !== p.id);
+                    if (candidates.length > 0) {
+                        const randomTarget = candidates[Math.floor(Math.random() * candidates.length)];
+                        roomData.votes[p.id] = randomTarget.id;
+                    }
+                }
+            });
+        }
 
         if(roomData.hostId === myUserId) {
             document.getElementById('host-tally-btn').classList.remove('hidden');
