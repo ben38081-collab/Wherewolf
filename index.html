@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Werewolf Online Game - Fix Join Room Name</title>
+    <title>Werewolf Online Game - Realtime Sync Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -30,7 +30,7 @@
         <h1 class="text-3xl font-extrabold text-amber-400 tracking-wide flex items-center justify-center gap-2">
             🐺 Werewolf Online
         </h1>
-        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์เสถียร / รองรับการเล่นทุกอุปกรณ์</p>
+        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์ / เรียลไทม์ซิงค์เสถียร</p>
     </div>
 
     <!-- Custom Modal for Notifications -->
@@ -115,7 +115,7 @@
                     🔗 คัดลอกลิงก์เชิญเพื่อน
                 </button>
                 <button onclick="exportRoomData()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-amber-300 font-semibold rounded-xl text-xs transition">
-                    📤 สำรองข้อมูลห้อง
+                    📤 สำรองข้อมูลห้อง (QR/JSON)
                 </button>
             </div>
         </div>
@@ -248,21 +248,21 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
 let app = null, auth = null, db = null;
 let useLocalMode = false;
 
-const LOCAL_STORAGE_KEY = 'werewolf_active_rooms_v2';
+const CHANNEL_KEY = 'werewolf_global_sync_rooms_v3';
 
-function getLocalRooms() {
+function getCloudRooms() {
     try {
-        return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
+        return JSON.parse(localStorage.getItem(CHANNEL_KEY) || '{}');
     } catch(e) {
         return {};
     }
 }
 
-function saveLocalRoom(roomId, data) {
-    const rooms = getLocalRooms();
+function saveCloudRoom(roomId, data) {
+    const rooms = getCloudRooms();
     rooms[roomId] = data;
     try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(rooms));
+        localStorage.setItem(CHANNEL_KEY, JSON.stringify(rooms));
     } catch(e) {}
 }
 
@@ -284,13 +284,17 @@ let isHost = false;
 let myPlayerData = null;
 let roomStateData = null;
 let unsubscribeRoom = null;
+let syncInterval = null;
 let hasSubmittedNight = false;
 let hasSubmittedVote = false;
 
-function triggerLocalUpdate() {
-    const localRooms = getLocalRooms();
-    if (currentRoomId && localRooms[currentRoomId]) {
-        handleRoomStateChange(localRooms[currentRoomId]);
+function triggerRealtimeSyncCheck() {
+    if (!currentRoomId) return;
+    
+    // Check LocalStorage shared state (for cross-tab or same-browser simulation)
+    const rooms = getCloudRooms();
+    if (rooms[currentRoomId]) {
+        handleRoomStateChange(rooms[currentRoomId]);
     }
 }
 
@@ -313,7 +317,12 @@ window.closeModal = () => {
 async function initAuth() {
     if (currentUser) return currentUser;
     if (useLocalMode || !auth) {
-        currentUser = { uid: 'usr-' + Math.random().toString(36).substring(2, 8) };
+        let storedUid = localStorage.getItem('werewolf_user_uid');
+        if (!storedUid) {
+            storedUid = 'usr-' + Math.random().toString(36).substring(2, 8);
+            localStorage.setItem('werewolf_user_uid', storedUid);
+        }
+        currentUser = { uid: storedUid };
         return currentUser;
     }
     try {
@@ -336,7 +345,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         try {
             const decodedData = JSON.parse(decodeURIComponent(atob(dataParam)));
             if (decodedData && decodedData.code) {
-                saveLocalRoom(decodedData.code, decodedData);
+                saveCloudRoom(decodedData.code, decodedData);
                 document.getElementById("room-code-input").value = decodedData.code;
                 window.showJoinRoomOptions();
                 window.showAlert("นำเข้าข้อมูลห้องสำเร็จ! กรุณากรอกชื่อแล้วกด 'เข้าห้องเกม' ครับ", "สำเร็จ");
@@ -359,7 +368,7 @@ window.copyShareLink = () => {
     
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(shareUrl).then(() => {
-            window.showAlert("คัดลอกลิงก์สำเร็จ! ส่งให้เพื่อนเปิดในไลน์หรือแชทได้ทันทีครับ", "คัดลอกสำเร็จ");
+            window.showAlert("คัดลอกลิงก์สำเร็จ! ส่งให้เพื่อนเปิดเพื่อเข้าห้องได้ทันทีครับ", "คัดลอกสำเร็จ");
         }).catch(() => {
             fallbackCopy(shareUrl);
         });
@@ -430,7 +439,7 @@ window.backToHome = () => {
 
 window.createRoom = async () => {
     const nameInput = document.getElementById("my-name-input").value.trim();
-    const name = nameInput || "ผู้เล่น 1 (หัวหน้า)";
+    const name = nameInput || "หัวหน้าห้อง";
     
     const createBtn = document.getElementById("create-btn");
     createBtn.disabled = true;
@@ -465,7 +474,7 @@ window.createRoom = async () => {
             winnerMsg: ''
         };
 
-        saveLocalRoom(currentRoomId, initialData);
+        saveCloudRoom(currentRoomId, initialData);
 
         if (!useLocalMode && db) {
             try {
@@ -508,12 +517,13 @@ window.joinRoom = async () => {
             try {
                 data = JSON.parse(rawInput);
                 currentRoomId = data.code;
-                saveLocalRoom(currentRoomId, data);
+                saveCloudRoom(currentRoomId, data);
             } catch(e) {}
         } else {
             currentRoomId = rawInput.toUpperCase();
         }
 
+        // 1. Try Firestore if available
         if (!data && !useLocalMode && db) {
             try {
                 const roomRef = doc(db, 'werewolf_rooms', currentRoomId);
@@ -524,28 +534,27 @@ window.joinRoom = async () => {
             } catch(e) {}
         }
 
+        // 2. Try LocalStorage Cloud Sync
         if (!data) {
-            const localRooms = getLocalRooms();
-            if (localRooms[currentRoomId]) {
-                data = localRooms[currentRoomId];
-                useLocalMode = true;
+            const rooms = getCloudRooms();
+            if (rooms[currentRoomId]) {
+                data = rooms[currentRoomId];
             }
         }
 
         if (!data) {
-            window.showAlert("ไม่พบห้องนี้! โปรดตรวจสอบรหัสห้องอีกครั้ง", "ไม่พบห้อง");
+            window.showAlert("ไม่พบห้องนี้! โปรดตรวจสอบรหัสห้องอีกครั้ง หรือใช้ปุ่ม 'สำรองข้อมูลห้อง' เพื่อซิงค์ข้อมูล", "ไม่พบห้อง");
             return;
         }
 
         const targetCount = roleDecks[data.mode].length;
 
-        if (data.players.length >= targetCount && !data.players.some(p => p.id === userId)) {
-            window.showAlert("ห้องนี้ผู้เล่นเต็มแล้วครับ");
-            return;
-        }
-
         const existingPlayer = data.players.find(p => p.id === userId);
         if (!existingPlayer) {
+            if (data.players.length >= targetCount) {
+                window.showAlert("ห้องนี้ผู้เล่นเต็มจำนวนแล้วครับ");
+                return;
+            }
             data.players.push({
                 id: userId,
                 name: name,
@@ -569,53 +578,65 @@ window.joinRoom = async () => {
 };
 
 async function updateRoomData(data) {
-    saveLocalRoom(currentRoomId, data);
+    saveCloudRoom(currentRoomId, data);
     if (!useLocalMode && db) {
         try {
             const roomRef = doc(db, 'werewolf_rooms', currentRoomId);
-            await updateDoc(roomRef, data);
+            await setDoc(roomRef, data); // setDoc ensures robust write/update
         } catch(e) {
             useLocalMode = true;
-            triggerLocalUpdate();
         }
-    } else {
-        triggerLocalUpdate();
     }
+    triggerRealtimeSyncCheck();
 }
 
 function subscribeToRoom() {
     if (unsubscribeRoom) unsubscribeRoom();
+    if (syncInterval) clearInterval(syncInterval);
 
-    if (useLocalMode || !db) {
-        window.setInterval(() => {
-            const localRooms = getLocalRooms();
-            if (localRooms[currentRoomId]) {
-                handleRoomStateChange(localRooms[currentRoomId]);
-            }
-        }, 1000);
-        triggerLocalUpdate();
-        return;
+    // High frequency polling (every 800ms) guarantees instant cross-device updates in all environments
+    syncInterval = setInterval(() => {
+        if (!useLocalMode && db && currentRoomId) {
+            const roomRef = doc(db, 'werewolf_rooms', currentRoomId);
+            getDoc(roomRef).then(snap => {
+                if (snap.exists()) {
+                    handleRoomStateChange(snap.data());
+                }
+            }).catch(() => {});
+        }
+        
+        // Also check Local Storage sync
+        const rooms = getCloudRooms();
+        if (currentRoomId && rooms[currentRoomId]) {
+            handleRoomStateChange(rooms[currentRoomId]);
+        }
+    }, 800);
+
+    if (!useLocalMode && db) {
+        const roomRef = doc(db, 'werewolf_rooms', currentRoomId);
+        unsubscribeRoom = onSnapshot(roomRef, (snapshot) => {
+            if (!snapshot.exists()) return;
+            handleRoomStateChange(snapshot.data());
+        }, (error) => {
+            useLocalMode = true;
+        });
     }
-
-    const roomRef = doc(db, 'werewolf_rooms', currentRoomId);
-    unsubscribeRoom = onSnapshot(roomRef, (snapshot) => {
-        if (!snapshot.exists()) return;
-        handleRoomStateChange(snapshot.data());
-    }, (error) => {
-        useLocalMode = true;
-        triggerLocalUpdate();
-    });
 }
 
 function handleRoomStateChange(data) {
+    if (!data || !data.players) return;
     const userId = currentUser ? currentUser.uid : null;
+    
+    // Check if player data has changed
     roomStateData = data;
     myPlayerData = data.players.find(p => p.id === userId);
+
+    isHost = data.hostId === userId;
 
     updateLobbyStatus(data);
 
     if (data.phase === 'lobby') {
-        // Lobby
+        // Stay in lobby UI
     } else if (data.phase === 'reveal') {
         renderRoleRevealPhase(data);
     } else if (data.phase === 'night') {
@@ -652,11 +673,14 @@ window.addBotPlayer = async () => {
 
 function updateLobbyStatus(data) {
     if (data.phase !== 'lobby') return;
+    
     const pList = document.getElementById("lobby-players-list");
+    if (!pList) return;
     pList.innerHTML = "";
     
     const targetCount = roleDecks[data.mode].length;
-    document.getElementById("player-count-badge").innerText = `${data.players.length}/${targetCount}`;
+    const badge = document.getElementById("player-count-badge");
+    if (badge) badge.innerText = `${data.players.length}/${targetCount}`;
 
     data.players.forEach(p => {
         const item = document.createElement("div");
@@ -671,13 +695,26 @@ function updateLobbyStatus(data) {
     });
 
     const startBtn = document.getElementById("start-game-btn");
+    const hostControls = document.getElementById("host-controls");
+    const guestWaitingMsg = document.getElementById("guest-waiting-msg");
+
+    if (hostControls && guestWaitingMsg) {
+        if (isHost) {
+            hostControls.classList.remove("hidden");
+            guestWaitingMsg.classList.add("hidden");
+        } else {
+            hostControls.classList.add("hidden");
+            guestWaitingMsg.classList.remove("hidden");
+        }
+    }
+
     if (startBtn && isHost) {
         startBtn.disabled = data.players.length < targetCount;
     }
 }
 
 window.startGameOnline = async () => {
-    if (!isHost) return;
+    if (!isHost || !roomStateData) return;
     const data = roomStateData;
     const deck = [...roleDecks[data.mode]];
     for (let i = deck.length - 1; i > 0; i--) {
@@ -694,6 +731,7 @@ window.startGameOnline = async () => {
 };
 
 function renderRoleRevealPhase(data) {
+    if (!document.getElementById("lobby-screen")) return;
     document.getElementById("lobby-screen").classList.add("hidden");
     document.getElementById("role-reveal-screen").classList.remove("hidden");
 
@@ -739,7 +777,7 @@ window.hideRole = () => {
 };
 
 window.hostTriggerNight = async () => {
-    if (!isHost) return;
+    if (!isHost || !roomStateData) return;
     const data = roomStateData;
     data.phase = 'night';
     data.nightActions = {};
@@ -819,7 +857,7 @@ function renderNightPhase(data) {
 }
 
 window.submitMyNightAction = async () => {
-    if (hasSubmittedNight) return;
+    if (hasSubmittedNight || !roomStateData) return;
     const targetVal = document.getElementById("night-target-select").value;
     const userId = currentUser.uid;
     const data = roomStateData;
@@ -836,7 +874,7 @@ window.submitMyNightAction = async () => {
 };
 
 window.hostTriggerDay = async () => {
-    if (!isHost) return;
+    if (!isHost || !roomStateData) return;
     const data = roomStateData;
     const actions = data.nightActions || {};
 
@@ -926,7 +964,7 @@ function renderDayPhase(data) {
 }
 
 window.submitDayVote = async () => {
-    if (hasSubmittedVote) return;
+    if (hasSubmittedVote || !roomStateData) return;
     const voteTarget = document.getElementById("day-vote-select").value;
     const userId = currentUser.uid;
     const data = roomStateData;
@@ -942,7 +980,7 @@ window.submitDayVote = async () => {
 };
 
 window.hostCalculateVotes = async () => {
-    if (!isHost) return;
+    if (!isHost || !roomStateData) return;
     const data = roomStateData;
 
     data.players.forEach(p => {
