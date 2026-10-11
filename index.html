@@ -690,8 +690,11 @@
 
         const me = roomData.players.find(p => p.id === myUserId);
 
+        // ให้ Host ตรวจสอบและรันการกระทำของ Bot ในทุกๆ Step กลางคืนเสมอ
         if (roomData.hostId === myUserId) {
-            handleBotNightActions(step);
+            setTimeout(() => {
+                handleBotNightActions(step);
+            }, 300);
         }
 
         if(step === 1) {
@@ -1006,6 +1009,13 @@
         }
 
         await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
+        
+        // หากสลับเป็นช่วงกลางคืน ให้ Host รันแอคชันบอทคืนถัดไปทันที
+        if (roomData.status === 'night' && roomData.hostId === myUserId) {
+            setTimeout(() => {
+                handleBotNightActions(1);
+            }, 500);
+        }
     }
 
     function setupEndScreen() {
