@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Werewolf Online (Cloud & Hybrid Sync)</title>
+    <title>Werewolf Online (Firebase Cloud Firestore)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap');
@@ -25,7 +25,7 @@
         <h1 class="text-3xl font-extrabold text-amber-400 tracking-wide flex items-center justify-center gap-2">
             🐺 Werewolf Online
         </h1>
-        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์ เล่นคนละเครื่อง/คนละบราวเซอร์ พร้อมเสียงบรรยายและบทบาทเสริม</p>
+        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์ Cloud Firestore สดๆ เรียลไทม์ พร้อมเล่นข้ามเครื่อง!</p>
     </div>
 
     <!-- Custom Modal -->
@@ -48,9 +48,9 @@
                        oninput="syncNameInputs(this.value)"
                        class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-white focus:outline-none focus:border-amber-400">
             </div>
-            <div class="text-center text-xs text-emerald-400 flex items-center justify-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                ⚡ ระบบซิงค์ข้อมูล Cloud พร้อมใช้งาน
+            <div id="firebase-status" class="text-center text-xs text-amber-400 flex items-center justify-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                🔌 กำลังเชื่อมต่อระบบ Cloud Firestore...
             </div>
         </div>
 
@@ -77,7 +77,7 @@
         </div>
 
         <button id="btn-create-room" onclick="createRoom()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl shadow-lg transition">
-            🎲 สร้างห้องทันที
+            🎲 สร้างห้องทันทีบน Cloud
         </button>
         <button onclick="backToHome()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium rounded-xl text-sm">
             ⬅️ กลับ
@@ -101,7 +101,7 @@
         </div>
 
         <button id="btn-join-room" onclick="joinRoom()" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold rounded-xl shadow-lg transition">
-            🚀 เข้าห้องเกม
+            🚀 เข้าห้องเกมออนไลน์
         </button>
         <button onclick="backToHome()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium rounded-xl text-sm">
             ⬅️ กลับ
@@ -167,7 +167,7 @@
     <div id="night-screen" class="hidden space-y-4">
         <div class="text-center">
             <h2 id="night-title" class="text-xl font-bold text-indigo-300">🌙 ค่ำคืนมาเยือน...</h2>
-            <p id="narrator-text" class="text-xs text-amber-300 font-semibold bg-indigo-950/60 p-3 rounded-lg border border-indigo-500/30 my-2">กำลังโหลดเสียงบรรยาย...</p>
+            <p id="narrator-text" class="text-xs text-amber-300 font-semibold bg-indigo-950/60 p-3 rounded-lg border border-indigo-500/30 my-2">กำลังโหลด...</p>
         </div>
 
         <div id="night-action-box" class="bg-slate-800/90 p-4 rounded-xl border border-indigo-500/30 space-y-3">
@@ -236,11 +236,19 @@
     </div>
 </div>
 
-<script>
-let myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'werewolf-online-default';
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+let db, auth, currentUser;
 let currentRoomId = null;
 let roomData = null;
-let pollInterval = null;
+let unsubscribeRoom = null;
+let myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
 
 const roleDecks = {
     mode1: [
@@ -262,12 +270,41 @@ const roleDecks = {
     ]
 };
 
+async function initFirebase() {
+    if (!firebaseConfig) {
+        document.getElementById("firebase-status").innerHTML = "⚠️ ทำงานในโหมด Offline (ไม่พบ Config Firebase)";
+        document.getElementById("firebase-status").className = "text-center text-xs text-rose-400";
+        return;
+    }
+    try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+            await signInAnonymously(auth);
+        }
+        currentUser = auth.currentUser;
+        if (currentUser) {
+            myUserId = currentUser.uid;
+        }
+        document.getElementById("firebase-status").innerHTML = "⚡ เชื่อมต่อ Cloud Firestore สำเร็จแล้ว (เรียลไทม์)";
+        document.getElementById("firebase-status").className = "text-center text-xs text-emerald-400";
+    } catch (e) {
+        console.error("Firebase init error:", e);
+        document.getElementById("firebase-status").innerHTML = "⚠️ เชื่อมต่อ Cloud ไม่สำเร็จ ใช้โหมดสำรอง";
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
+    initFirebase();
     updateModeInfo();
     const params = new URLSearchParams(location.search);
     const rParam = params.get('room');
     if (rParam) {
-        document.getElementById("room-code-input").value = rParam.trim();
+        document.getElementById("room-code-input").value = rParam.trim().toUpperCase();
         document.getElementById("home-screen").classList.add("hidden");
         document.getElementById("join-room-screen").classList.remove("hidden");
     }
@@ -279,9 +316,9 @@ window.updateModeInfo = function() {
     if (mode === "mode1") {
         box.innerHTML = "<b>รูปแบบที่ 1 (6 คน):</b><br>• 🐺 หมาป่า 2 ใบ<br>• 👁️ ผู้หยั่งรู้ 1 ใบ<br>• 🛡️ บอดี้การ์ด 1 ใบ<br>• 🧑‍🌾 ชาวบ้าน 2 ใบ";
     } else if (mode === "mode2") {
-        box.innerHTML = "<b>รูปแบบที่ 2 (6 คน):</b><br>• 🐺 หมาป่า 1 ใบ<br>• 👁️ ผู้หยั่งรู้ 1 ใบ<br>• 🛡️ บอดี้การ์ด 1 ใบ<br>• 🧑‍🌾 ชาวบ้าน 2 ใบ<br>• 🪵 ยาจก 1 ใบ (ชนะทันทีหากถูกโหวตออก)";
+        box.innerHTML = "<b>รูปแบบที่ 2 (6 คน):</b><br>• 🐺 หมาป่า 1 ใบ<br>• 👁️ ผู้หยั่งรู้ 1 ใบ<br>• 🛡️ บอดี้การ์ด 1 ใบ<br>• 🧑‍🌾 ชาวบ้าน 2 ใบ<br>• 🪵 ยาจก 1 ใบ";
     } else {
-        box.innerHTML = "<b>รูปแบบที่ 3 (7 คน):</b><br>• 🐺 หมาป่า 2 ใบ<br>• 👁️ ผู้หยั่งรู้ 1 ใบ<br>• 🛡️ บอดี้การ์ด 1 ใบ<br>• 🧑‍🌾 ชาวบ้าน 2 ใบ<br>• 🪵 ยาจก 1 ใบ (ชนะทันทีหากถูกโหวตออก)";
+        box.innerHTML = "<b>รูปแบบที่ 3 (7 คน):</b><br>• 🐺 หมาป่า 2 ใบ<br>• 👁️ ผู้หยั่งรู้ 1 ใบ<br>• 🛡️ บอดี้การ์ด 1 ใบ<br>• 🧑‍🌾 ชาวบ้าน 2 ใบ<br>• 🪵 ยาจก 1 ใบ";
     }
 };
 
@@ -325,9 +362,9 @@ window.showJoinRoomOptions = function() {
 };
 
 window.backToHome = function() {
-    if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
+    if (unsubscribeRoom) {
+        unsubscribeRoom();
+        unsubscribeRoom = null;
     }
     document.getElementById("create-room-screen").classList.add("hidden");
     document.getElementById("join-room-screen").classList.add("hidden");
@@ -335,30 +372,33 @@ window.backToHome = function() {
     document.getElementById("home-screen").classList.remove("hidden");
 };
 
-function saveRoomToStorage(roomId, data) {
+async function saveRoomToCloud(roomId, data) {
+    if (db) {
+        try {
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', 'rooms_' + roomId), data);
+        } catch (e) {
+            console.error("Cloud save error:", e);
+        }
+    }
     localStorage.setItem('werewolf_room_' + roomId, JSON.stringify(data));
-    try {
-        const cloudRooms = JSON.parse(localStorage.getItem('werewolf_cloud_rooms') || '{}');
-        cloudRooms[roomId] = data;
-        localStorage.setItem('werewolf_cloud_rooms', JSON.stringify(cloudRooms));
-    } catch(e) {}
 }
 
-function getRoomFromStorage(roomId) {
-    let val = localStorage.getItem('werewolf_room_' + roomId);
-    if (!val) {
+async function getRoomFromCloud(roomId) {
+    if (db) {
         try {
-            const cloudRooms = JSON.parse(localStorage.getItem('werewolf_cloud_rooms') || '{}');
-            if (cloudRooms[roomId]) {
-                val = JSON.stringify(cloudRooms[roomId]);
-                localStorage.setItem('werewolf_room_' + roomId, val);
+            const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', 'rooms_' + roomId));
+            if (snap.exists()) {
+                return snap.data();
             }
-        } catch(e) {}
+        } catch (e) {
+            console.error("Cloud get error:", e);
+        }
     }
+    const val = localStorage.getItem('werewolf_room_' + roomId);
     return val ? JSON.parse(val) : null;
 }
 
-window.createRoom = function() {
+window.createRoom = async function() {
     const name = getPlayerName();
     const mode = document.getElementById("game-mode-select").value;
     if (!name) {
@@ -390,13 +430,13 @@ window.createRoom = function() {
         updatedAt: Date.now()
     };
 
-    saveRoomToStorage(roomId, initialRoomData);
+    await saveRoomToCloud(roomId, initialRoomData);
     roomData = initialRoomData;
-    startPolling(roomId);
+    listenToRoom(roomId);
     enterLobbyScreen(roomId);
 };
 
-window.joinRoom = function() {
+window.joinRoom = async function() {
     const name = getPlayerName();
     const codeInput = document.getElementById("room-code-input").value.trim().toUpperCase();
 
@@ -409,45 +449,63 @@ window.joinRoom = function() {
         return;
     }
 
-    let rData = getRoomFromStorage(codeInput);
+    let rData = await getRoomFromCloud(codeInput);
     if (!rData) {
-        window.showAlert("ไม่พบห้องที่มีรหัสนี้ในระบบ กรุณาตรวจสอบรหัสห้องอีกครั้ง");
+        window.showAlert("ไม่พบห้องที่มีรหัส " + codeInput + " บน Cloud Firestore กรุณาตรวจสอบรหัสห้องอีกครั้ง");
         return;
     }
 
     currentRoomId = codeInput;
-    const existing = rData.players.find(p => p.id === myUserId || p.name === name);
+    let existing = rData.players.find(p => p.id === myUserId);
     if (!existing) {
-        const maxLimit = roleDecks[rData.mode].length;
-        if (rData.players.length >= maxLimit) {
-            window.showAlert("ห้องนี้เต็มจำนวนผู้เล่นแล้วครับ");
-            return;
+        // Check if name already exists
+        const nameMatch = rData.players.find(p => p.name === name);
+        if (nameMatch) {
+            nameMatch.id = myUserId; // Reclaim session
+        } else {
+            const maxLimit = roleDecks[rData.mode].length;
+            if (rData.players.length >= maxLimit) {
+                window.showAlert("ห้องนี้เต็มจำนวนผู้เล่นแล้วครับ");
+                return;
+            }
+            rData.players.push({
+                id: myUserId,
+                name: name,
+                role: '',
+                alive: true,
+                isBot: false
+            });
         }
-        rData.players.push({
-            id: myUserId,
-            name: name,
-            role: '',
-            alive: true,
-            isBot: false
-        });
         rData.updatedAt = Date.now();
-        saveRoomToStorage(codeInput, rData);
+        await saveRoomToCloud(codeInput, rData);
     }
 
     roomData = rData;
-    startPolling(codeInput);
+    listenToRoom(codeInput);
     enterLobbyScreen(codeInput);
 };
 
-function startPolling(roomId) {
-    if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(() => {
-        const latest = getRoomFromStorage(roomId);
-        if (latest) {
-            roomData = latest;
-            updateUIBasedOnPhase(roomData);
-        }
-    }, 1000);
+function listenToRoom(roomId) {
+    if (unsubscribeRoom) unsubscribeRoom();
+    if (db) {
+        unsubscribeRoom = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', 'rooms_' + roomId), (docSnap) => {
+            if (docSnap.exists()) {
+                roomData = docSnap.data();
+                updateUIBasedOnPhase(roomData);
+            }
+        }, (error) => {
+            console.error("Firestore snapshot error:", error);
+        });
+    } else {
+        // Fallback interval
+        setInterval(async () => {
+            const latest = await getRoomFromCloud(roomId);
+            if (latest) {
+                roomData = latest;
+                updateUIBasedOnPhase(roomData);
+            }
+        }, 1500);
+    }
 }
 
 function enterLobbyScreen(roomId) {
@@ -461,13 +519,13 @@ function enterLobbyScreen(roomId) {
 window.copyShareLink = function() {
     const link = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
     navigator.clipboard.writeText(link).then(() => {
-        window.showAlert("คัดลอกลิงก์เชิญเรียบร้อยแล้ว!", "สำเร็จ");
+        window.showAlert("คัดลอกลิงก์เชิญเรียบร้อยแล้ว ส่งให้เพื่อนกดเข้าได้เลย!", "สำเร็จ");
     }).catch(() => {
-        window.showAlert("คัดลอกลิงก์เชิญสำเร็จแล้ว!", "สำเร็จ");
+        window.showAlert("คัดลอกลิงก์: " + link, "ลิงก์ห้องเกม");
     });
 };
 
-window.addBotPlayer = function() {
+window.addBotPlayer = async function() {
     if (!roomData) return;
     const maxLimit = roleDecks[roomData.mode].length;
     if (roomData.players.length >= maxLimit) {
@@ -483,10 +541,10 @@ window.addBotPlayer = function() {
         isBot: true
     });
     roomData.updatedAt = Date.now();
-    saveRoomToStorage(currentRoomId, roomData);
+    await saveRoomToCloud(currentRoomId, roomData);
 };
 
-window.startGameOnline = function() {
+window.startGameOnline = async function() {
     if (!roomData) return;
     const deck = [...roleDecks[roomData.mode]];
     for (let i = deck.length - 1; i > 0; i--) {
@@ -499,7 +557,7 @@ window.startGameOnline = function() {
     });
     roomData.phase = 'reveal';
     roomData.updatedAt = Date.now();
-    saveRoomToStorage(currentRoomId, roomData);
+    await saveRoomToCloud(currentRoomId, roomData);
 };
 
 function updateUIBasedOnPhase(data) {
@@ -559,9 +617,7 @@ function updateUIBasedOnPhase(data) {
     else if (data.phase === 'night') {
         document.getElementById("night-screen").classList.remove("hidden");
         document.getElementById("night-title").innerText = `🌙 ค่ำคืนที่ ${data.nightCount} มาเยือน`;
-        
-        const narratorText = "ทุกคนหลับตาลง... ค่ำคืนอันมืดมิดได้เริ่มต้นขึ้นแล้ว";
-        document.getElementById("narrator-text").innerText = narratorText;
+        document.getElementById("narrator-text").innerText = "ทุกคนหลับตาลง... ค่ำคืนอันมืดมิดได้เริ่มต้นขึ้นแล้ว";
         
         const me = data.players.find(p => p.id === myUserId) || data.players[0];
         const selectElem = document.getElementById("night-target-select");
@@ -626,14 +682,14 @@ function updateUIBasedOnPhase(data) {
     }
 }
 
-window.hostTriggerNight = function() {
+window.hostTriggerNight = async function() {
     if (!roomData) return;
     roomData.phase = 'night';
     roomData.updatedAt = Date.now();
-    saveRoomToStorage(currentRoomId, roomData);
+    await saveRoomToCloud(currentRoomId, roomData);
 };
 
-window.submitMyNightAction = function() {
+window.submitMyNightAction = async function() {
     const val = document.getElementById("night-target-select").value;
     const me = roomData.players.find(p => p.id === myUserId) || roomData.players[0];
     if (!me) return;
@@ -656,7 +712,7 @@ window.submitMyNightAction = function() {
 
     roomData.nightActions = actions;
     roomData.updatedAt = Date.now();
-    saveRoomToStorage(currentRoomId, roomData);
+    await saveRoomToCloud(currentRoomId, roomData);
     window.showAlert("บันทึกคำสั่งกลางคืนเรียบร้อย", "สำเร็จ");
 };
 
@@ -664,7 +720,7 @@ window.closeSeerModal = function() {
     document.getElementById("seer-reveal-modal").classList.add("hidden");
 };
 
-window.hostTriggerDay = function() {
+window.hostTriggerDay = async function() {
     if (!roomData) return;
     const killedId = roomData.nightActions?.kill;
     const protectedId = roomData.nightActions?.protect;
@@ -697,20 +753,20 @@ window.hostTriggerDay = function() {
     roomData.phase = nextPhase;
     roomData.winnerMsg = winnerMsg;
     roomData.updatedAt = Date.now();
-    saveRoomToStorage(currentRoomId, roomData);
+    await saveRoomToCloud(currentRoomId, roomData);
 };
 
-window.submitDayVote = function() {
+window.submitDayVote = async function() {
     const val = document.getElementById("day-vote-select").value;
     let votes = roomData.dayVotes || {};
     votes[myUserId] = val;
     roomData.dayVotes = votes;
     roomData.updatedAt = Date.now();
-    saveRoomToStorage(currentRoomId, roomData);
+    await saveRoomToCloud(currentRoomId, roomData);
     window.showAlert("บันทึกผลโหวตสำเร็จ", "สำเร็จ");
 };
 
-window.hostCalculateVotes = function() {
+window.hostCalculateVotes = async function() {
     if (!roomData) return;
     let voteCounts = {};
     Object.values(roomData.dayVotes || {}).forEach(vId => {
@@ -737,7 +793,7 @@ window.hostCalculateVotes = function() {
                 roomData.phase = 'end';
                 roomData.winnerMsg = `🪵 ยาจก (${outcast.name}) เป็นฝ่ายชนะเดี่ยว! (เพราะยาจกถูกโหวตออกจากหมู่บ้านสำเร็จ)`;
                 roomData.updatedAt = Date.now();
-                saveRoomToStorage(currentRoomId, roomData);
+                await saveRoomToCloud(currentRoomId, roomData);
                 return;
             }
             summary = `💥 ผลโหวตสูงสุด: ${outcast.name} ถูกโหวตออกจากหมู่บ้าน!`;
@@ -767,7 +823,7 @@ window.hostCalculateVotes = function() {
     roomData.phase = nextPhase;
     roomData.winnerMsg = winnerMsg;
     roomData.updatedAt = Date.now();
-    saveRoomToStorage(currentRoomId, roomData);
+    await saveRoomToCloud(currentRoomId, roomData);
 };
 </script>
 
