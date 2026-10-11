@@ -157,6 +157,11 @@
             </div>
         </div>
 
+        <!-- ปุ่มรีเฟรชด่วน -->
+        <button onclick="manualRefreshRoom()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center justify-center gap-1">
+            🔄 รีเฟรชข้อมูลห้อง (ซิงก์ด่วน)
+        </button>
+
         <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
             <div class="flex justify-between items-center mb-3">
                 <span class="text-sm font-bold text-slate-300">👥 ผู้เล่นในห้อง:</span>
@@ -187,6 +192,11 @@
              onmousedown="revealRole()" onmouseup="hideRole()" ontouchstart="revealRole()" ontouchend="hideRole()">
             🔒 กดค้างไว้ เพื่อดูบทบาทของคุณ
         </div>
+
+        <!-- ปุ่มรีเฟรชด่วน -->
+        <button onclick="manualRefreshRoom()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center justify-center gap-1">
+            🔄 รีเฟรชข้อมูลห้อง (ซิงก์ด่วน)
+        </button>
 
         <div id="host-night-start-btn" class="hidden pt-2">
             <button onclick="hostTriggerNight()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl transition">
@@ -219,6 +229,11 @@
                 ⏭️ กดเพื่อดำเนินการต่อ (ซ่อนสถานะ)
             </button>
         </div>
+
+        <!-- ปุ่มรีเฟรชด่วน -->
+        <button onclick="manualRefreshRoom()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center justify-center gap-1">
+            🔄 รีเฟรชข้อมูลห้อง (ซิงก์ด่วน)
+        </button>
 
         <div id="seer-reveal-modal" class="hidden bg-slate-800 p-4 rounded-xl border border-amber-400 text-center space-y-3">
             <h3 class="text-amber-300 font-bold">👁️ ผลตรวจสอบของผู้หยั่งรู้:</h3>
@@ -265,6 +280,11 @@
             </div>
         </div>
 
+        <!-- ปุ่มรีเฟรชด่วน -->
+        <button onclick="manualRefreshRoom()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center justify-center gap-1">
+            🔄 รีเฟรชข้อมูลห้อง (ซิงก์ด่วน)
+        </button>
+
         <div id="host-tally-btn" class="hidden">
             <button onclick="hostCalculateVotes()" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold rounded-xl transition shadow-lg">
                 ⚖️ สรุปผลการโหวตทั้งหมด
@@ -282,6 +302,11 @@
         <div id="vote-summary-content" class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-left space-y-3">
             <!-- Dynamic content loaded via JS -->
         </div>
+
+        <!-- ปุ่มรีเฟรชด่วน -->
+        <button onclick="manualRefreshRoom()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center justify-center gap-1">
+            🔄 รีเฟรชข้อมูลห้อง (ซิงก์ด่วน)
+        </button>
 
         <div id="host-next-phase-btn" class="hidden pt-2">
             <button id="btn-proceed-phase" onclick="proceedToNextPhase()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition">
@@ -301,6 +326,11 @@
             <h3 class="font-bold text-amber-300 text-center mb-2">📋 เฉลยบทบาททุกคน:</h3>
             <div id="end-roles-list" class="text-xs space-y-1.5 max-h-48 overflow-y-auto"></div>
         </div>
+
+        <!-- ปุ่มรีเฟรชด่วน -->
+        <button onclick="manualRefreshRoom()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center justify-center gap-1">
+            🔄 รีเฟรชข้อมูลห้อง (ซิงก์ด่วน)
+        </button>
 
         <div id="host-play-again-box" class="hidden space-y-2">
             <button onclick="playAgainSameRoom()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition">
@@ -597,6 +627,27 @@
         });
     }
 
+    // ฟังก์ชันรีเฟรชด่วน (Manual Refresh / Force Sync)
+    window.manualRefreshRoom = async function() {
+        if (!currentRoomId || !db) {
+            window.showModal("แจ้งเตือน", "คุณยังไม่ได้อยู่ในห้องเกม");
+            return;
+        }
+        try {
+            const roomRef = doc(db, "werewolf_rooms", currentRoomId);
+            const snap = await getDoc(roomRef);
+            if (snap.exists()) {
+                roomData = snap.data();
+                updateUIBasedOnState();
+                window.showModal("สำเร็จ", "ซิงก์ข้อมูลล่าสุดจาก Cloud สำเร็จ!");
+            } else {
+                window.showModal("แจ้งเตือน", "ไม่พบข้อมูลห้องนี้บนเซิร์ฟเวอร์แล้ว");
+            }
+        } catch(e) {
+            window.showModal("ข้อผิดพลาด", "ไม่สามารถรีเฟรชข้อมูลได้: " + e.message);
+        }
+    }
+
     window.copyShareLink = function() {
         const url = window.location.origin + window.location.pathname + "?room=" + currentRoomId;
         navigator.clipboard.writeText(url).then(() => {
@@ -659,9 +710,11 @@
 
     window.hideRole = function() {
         const box = document.getElementById('my-card-box');
-        box.innerText = "🔒 กดค้างไว้ เพื่อดูบทบาทของคุณ";
-        box.classList.remove('glow-gold', 'bg-slate-900', 'border-amber-400');
-        box.classList.add('glow-red', 'bg-slate-800', 'border-rose-500');
+        if(box) {
+            box.innerText = "🔒 กดค้างไว้ เพื่อดูบทบาทของคุณ";
+            box.classList.remove('glow-gold', 'bg-slate-900', 'border-amber-400');
+            box.classList.add('glow-red', 'bg-slate-800', 'border-rose-500');
+        }
     }
 
     window.hostTriggerNight = async function() {
@@ -686,7 +739,7 @@
             activePlayer = roomData.players.find(p => p.role.includes("บอดี้การ์ด"));
         }
 
-        // หากบทบาทนั้นไม่มีชีวิตอยู่ (ตายไปแล้ว) ให้ข้ามสเตป
+        // หากบทบาทนั้นไม่มีชีวิตอยู่ ให้ข้ามสเตป
         if(!activePlayer || !activePlayer.alive) {
             if(step === 1) roomData.nightState.killed = null;
             else if(step === 2) roomData.nightState.seerResult = null;
@@ -699,7 +752,6 @@
         // หากผู้ถือบทบาทเป็นบอท ให้บอทตัดสินใจอัตโนมัติทันที
         if(activePlayer.isBot) {
             if(step === 1) {
-                // หมาป่าบอทเลือกเหยื่อที่เป็นคนหรือบอทฝั่งตรงข้าม
                 const targets = roomData.players.filter(p => p.alive && !p.role.includes("หมาป่า"));
                 if(targets.length > 0) {
                     const chosen = targets[Math.floor(Math.random() * targets.length)];
@@ -708,7 +760,6 @@
                 roomData.nightState.step = 2;
                 processNightStepByHost();
             } else if(step === 2) {
-                // ผู้หยั่งรู้บอทตรวจสอบ
                 const targets = roomData.players.filter(p => p.alive && p.id !== activePlayer.id);
                 if(targets.length > 0) {
                     const chosen = targets[Math.floor(Math.random() * targets.length)];
@@ -718,7 +769,6 @@
                 roomData.nightState.step = 3;
                 processNightStepByHost();
             } else if(step === 3) {
-                // บอดี้การ์ดบอทเลือกคุ้มกัน
                 const targets = roomData.players.filter(p => p.alive && p.id !== roomData.nightState.lastProtected);
                 if(targets.length > 0) {
                     const chosen = targets[Math.floor(Math.random() * targets.length)];
@@ -793,7 +843,6 @@
         roomData.nightSummaryText = died ? `💀 เมื่อคืนนี้ ${victimName} ถูกหมาป่าสังหารเสียชีวิต!` : `☀️ เมื่อคืนนี้ปลอดภัย ไม่มีใครเสียชีวิต (${victimName})`;
         roomData.votes = {};
 
-        // ให้บอทที่ยังมีชีวิตอยู่ทำการโหวตอัตโนมัติล่วงหน้าทันที
         if(!roomData.votes) roomData.votes = {};
         roomData.players.filter(p => p.alive && p.isBot).forEach(bot => {
             const candidates = roomData.players.filter(p => p.alive && p.id !== bot.id);
@@ -921,6 +970,8 @@
         roomData.status = 'role_reveal';
         roomData.nightState = { step: 1, killed: null, protected: null, lastProtected: null, seerResult: null };
         roomData.votes = {};
+        roomData.voteSummaryMsg = "";
+        roomData.nightSummaryText = "";
         roomData.winner = null;
 
         await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
@@ -932,6 +983,8 @@
         ['home-screen', 'create-room-screen', 'join-room-screen', 'lobby-screen', 'role-reveal-screen', 'night-screen', 'day-screen', 'vote-summary-screen', 'end-screen'].forEach(id => {
             document.getElementById(id).classList.add('hidden');
         });
+
+        document.getElementById('seer-reveal-modal').classList.add('hidden');
 
         const isHost = roomData.hostId === myUserId;
 
@@ -949,6 +1002,7 @@
             }
         } else if(roomData.status === 'role_reveal') {
             document.getElementById('role-reveal-screen').classList.remove('hidden');
+            hideRole();
             if(isHost) {
                 document.getElementById('host-night-start-btn').classList.remove('hidden');
                 document.getElementById('guest-night-waiting').classList.add('hidden');
