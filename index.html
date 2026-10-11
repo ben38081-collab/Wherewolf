@@ -982,27 +982,40 @@
             }
         }
 
+        let voteSummaryMsg = "";
+
         if(eliminatedId && !isTie) {
             const victim = roomData.players.find(p => p.id === eliminatedId);
             if(victim) {
                 victim.alive = false;
+                voteSummaryMsg = `📢 ผลการโหวต: <b>${victim.name}</b> ถูกโหวตให้ออกจากหมู่บ้านด้วยคะแนนสูงสุด (${maxVotes} เสียง)!`;
+
                 if(victim.role.includes("ยาจก")) {
                     roomData.winner = `🪵 ฝ่ายยาจกชนะ! (${victim.name} ถูกโหวตออกจากหมู่บ้านสำเร็จ)`;
                     roomData.status = 'end';
+                    roomData.nightSummary = voteSummaryMsg;
                     await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
                     return;
                 }
             }
+        } else if(isTie && maxVotes > 0) {
+            voteSummaryMsg = `⚖️ ผลการโหวตเสมอกัน (สูงสุด ${maxVotes} เสียงเท่ากัน) ไม่มีใครถูกโหวตออกจากหมู่บ้าน!`;
+        } else {
+            voteSummaryMsg = `🕊️ ไม่มีใครถูกโหวตออกในรอบนี้ (งดออกเสียงส่วนใหญ่)!`;
         }
 
+        roomData.nightSummary = voteSummaryMsg;
+
+        // นับจำนวนหมาป่า vs ฝั่งชาวบ้านทุกบทบาทที่ไม่ใช่หมาป่า
         const aliveWolves = roomData.players.filter(p => p.alive && p.role.includes("Werewolf")).length;
-        const aliveVillagers = roomData.players.filter(p => p.alive && !p.role.includes("Werewolf")).length;
+        const aliveNonWolves = roomData.players.filter(p => p.alive && !p.role.includes("Werewolf")).length;
 
         if(aliveWolves === 0) {
             roomData.winner = "🎉 ฝ่ายชาวบ้านชนะ! หมาป่าถูกกำจัดหมดแล้ว";
             roomData.status = 'end';
-        } else if(aliveWolves >= aliveVillagers) {
-            roomData.winner = "🐺 ฝ่ายหมาป่าชนะ! จำนวนหมาป่าครอบครองหมู่บ้าน";
+        } else if(aliveNonWolves <= aliveWolves) {
+            // หากชาวบ้านทุก Role เหลือเท่ากับหรือน้อยกว่าหมาป่า หมาป่าชนะทันที
+            roomData.winner = `🐺 ฝ่ายหมาป่าชนะ! (เหลือผู้เล่นที่ไม่ใช่หมาป่า ${aliveNonWolves} คน <= หมาป่า ${aliveWolves} ตัว)`;
             roomData.status = 'end';
         } else {
             roomData.status = 'night';
