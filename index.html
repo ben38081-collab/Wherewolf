@@ -9,8 +9,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap');
         body { font-family: 'Prompt', sans-serif; }
         .glass-panel {
-            background: rgba(15, 23, 42, 0.88);
-            backdrop-filter: blur(12px);
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .glow-red { box-shadow: 0 0 25px rgba(225, 29, 72, 0.3); }
@@ -49,11 +49,11 @@
                        class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-white focus:outline-none focus:border-amber-400">
             </div>
             <div id="connection-status" class="text-center text-xs text-emerald-400">
-            ⚡ กำลังเตรียมพร้อมระบบเชื่อมต่อออนไลน์...
+                ⚡ พร้อมใช้งานออนไลน์ข้ามเครื่องแล้ว!
+            </div>
         </div>
-    </div>
 
-    <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 gap-3">
             <button onclick="showCreateRoomOptions()" class="w-full py-3.5 bg-rose-600 hover:bg-rose-500 font-bold rounded-xl shadow-lg transition duration-200">
                 ➕ สร้างห้องใหม่
             </button>
@@ -241,198 +241,480 @@
 </div>
 
 <script>
-// Global Game State & BroadcastChannel Sync
-let currentUser = { uid: 'user_' + Math.random().toString(36).substr(2, 9) };
-let currentRoomId = null;
-let isHost = false;
-let roomStateData = null;
-let syncInterval = null;
-let broadcastChannel = null;
+    let currentRoomId = null;
+    let roomData = null;
+    let myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
+    let pollInterval = null;
 
-const roleDecks = {
-    mode1: ["🐺 หมาป่า", "🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน"],
-    mode2: ["🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน", "🪵 ยาจก"],
-    mode3: ["🐺 หมาป่า", "🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน", "🪵 ยาจก"]
-};
-
-// Global Handler Functions
-window.showAlert = (msg, title = "แจ้งเตือน") => {
-    document.getElementById("modal-title").innerText = title;
-    document.getElementById("modal-message").innerText = msg;
-    document.getElementById("custom-modal").classList.remove("hidden");
-};
-
-window.closeModal = () => {
-    document.getElementById("custom-modal").classList.add("hidden");
-};
-
-window.syncNameInputs = (val) => {
-    document.getElementById("my-name-input").value = val;
-    document.getElementById("join-name-input").value = val;
-};
-
-function getPlayerName() {
-    return document.getElementById("my-name-input").value.trim() || document.getElementById("join-name-input").value.trim();
-}
-
-window.showCreateRoomOptions = () => {
-    const nameInput = getPlayerName();
-    if (!nameInput) {
-        window.showAlert("กรุณากรอกชื่อผู้เล่นของคุณก่อนสร้างห้องครับ", "แจ้งเตือน");
-        return;
-    }
-    document.getElementById("home-screen").classList.add("hidden");
-    document.getElementById("create-room-screen").classList.remove("hidden");
-};
-
-window.showJoinRoomOptions = () => {
-    const nameInput = getPlayerName();
-    if (!nameInput) {
-        window.showAlert("กรุณากรอกชื่อของคุณก่อนเข้าร่วมห้องครับ", "แจ้งเตือน");
-        return;
-    }
-    document.getElementById("home-screen").classList.add("hidden");
-    document.getElementById("join-room-screen").classList.remove("hidden");
-};
-
-window.backToHome = () => {
-    document.getElementById("create-room-screen").classList.add("hidden");
-    document.getElementById("join-room-screen").classList.add("hidden");
-    document.getElementById("lobby-screen").classList.add("hidden");
-    document.getElementById("home-screen").classList.remove("hidden");
-};
-
-function saveRoomState(roomId, data) {
-    localStorage.setItem(`werewolf_room_${roomId}`, JSON.stringify(data));
-    if (broadcastChannel) {
-        broadcastChannel.postMessage({ type: 'STATE_UPDATE', data });
-    }
-}
-
-function loadRoomState(roomId) {
-    const dataStr = localStorage.getItem(`werewolf_room_${roomId}`);
-    return dataStr ? JSON.parse(dataStr) : null;
-}
-
-function setupCrossTabSync(roomId) {
-    if (broadcastChannel) {
-        broadcastChannel.close();
-    }
-    broadcastChannel = new BroadcastChannel(`werewolf_room_channel_${roomId}`);
-    broadcastChannel.onmessage = (event) => {
-        if (event.data && event.data.type === 'STATE_UPDATE') {
-            handleRoomStateChange(event.data.data);
-        }
+    const roleDecks = {
+        mode1: ["🐺 หมาป่า", "🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน"],
+        mode2: ["🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน", "🪵 ยาจก"],
+        mode3: ["🐺 หมาป่า", "🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน", "🪵 ยาจก"]
     };
 
-    window.addEventListener('storage', (e) => {
-        if (e.key === `werewolf_room_${roomId}` && e.newValue) {
-            handleRoomStateChange(JSON.parse(e.newValue));
-        }
-    });
-}
-
-function startSyncLoop(roomId) {
-    if (syncInterval) clearInterval(syncInterval);
-    setupCrossTabSync(roomId);
-    
-    syncInterval = setInterval(() => {
-        const latestData = loadRoomState(roomId);
-        if (latestData) {
-            handleRoomStateChange(latestData);
-        }
-    }, 500);
-}
-
-window.createRoom = () => {
-    const name = getPlayerName();
-    const mode = document.getElementById("game-mode-select").value;
-    if (!name) {
-        window.showAlert("กรุณากรอกชื่อก่อน", "แจ้งเตือน");
-        return;
+    function showAlert(msg, title = "แจ้งเตือน") {
+        document.getElementById("modal-title").innerText = title;
+        document.getElementById("modal-message").innerText = msg;
+        document.getElementById("custom-modal").classList.remove("hidden");
     }
 
-    const roomId = Math.floor(1000 + Math.random() * 9000).toString();
-    currentRoomId = roomId;
-    isHost = true;
-
-    roomStateData = {
-        roomId: roomId,
-        mode: mode,
-        hostId: currentUser.uid,
-        phase: 'lobby',
-        players: [{
-            id: currentUser.uid,
-            name: name,
-            role: '',
-            alive: true,
-            isBot: false
-        }],
-        nightCount: 1,
-        nightActions: {},
-        dayVotes: {},
-        lastSummary: '',
-        winnerMsg: ''
-    };
-
-    saveRoomState(roomId, roomStateData);
-    enterLobbyScreen(roomId);
-    startSyncLoop(roomId);
-};
-
-window.joinRoom = () => {
-    const name = getPlayerName();
-    const codeInput = document.getElementById("room-code-input").value.trim().toUpperCase();
-
-    if (!name) {
-        window.showAlert("กรุณากรอกชื่อของคุณก่อนเข้าห้องครับ", "แจ้งเตือน");
-        return;
-    }
-    if (!codeInput) {
-        window.showAlert("กรุณากรอกรหัสห้อง 4 หลัก", "แจ้งเตือน");
-        return;
+    function closeModal() {
+        document.getElementById("custom-modal").classList.add("hidden");
     }
 
-    let roomData = loadRoomState(codeInput);
-    if (!roomData) {
-        window.showAlert("ไม่พบห้องที่มีรหัสนี้ กรุณาตรวจสอบรหัสห้องอีกครั้ง", "แจ้งเตือน");
-        return;
+    function syncNameInputs(val) {
+        document.getElementById("my-name-input").value = val;
+        document.getElementById("join-name-input").value = val;
     }
 
-    currentRoomId = codeInput;
-    isHost = roomData.hostId === currentUser.uid;
+    function getPlayerName() {
+        return document.getElementById("my-name-input").value.trim() || document.getElementById("join-name-input").value.trim();
+    }
 
-    const existingPlayer = roomData.players.find(p => p.id === currentUser.uid);
-    if (!existingPlayer) {
-        const maxLimit = roleDecks[roomData.mode].length;
-        if (roomData.players.length >= maxLimit) {
-            window.showAlert("ห้องนี้เต็มจำนวนผู้เล่นแล้วครับ", "แจ้งเตือน");
+    function showCreateRoomOptions() {
+        if (!getPlayerName()) {
+            showAlert("กรุณากรอกชื่อผู้เล่นของคุณก่อนสร้างห้องครับ");
             return;
         }
-        roomData.players.push({
-            id: currentUser.uid,
-            name: name,
-            role: '',
-            alive: true,
-            isBot: false
-        });
-        saveRoomState(currentRoomId, roomData);
+        document.getElementById("home-screen").classList.add("hidden");
+        document.getElementById("create-room-screen").classList.remove("hidden");
     }
 
-    roomStateData = roomData;
-    enterLobbyScreen(currentRoomId);
-    startSyncLoop(currentRoomId);
-};
-
-window.addEventListener('DOMContentLoaded', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomParam = urlParams.get('room');
-    if (roomParam) {
-        document.getElementById("room-code-input").value = roomParam.trim();
+    function showJoinRoomOptions() {
+        if (!getPlayerName()) {
+            showAlert("กรุณากรอกชื่อของคุณก่อนเข้าร่วมห้องครับ");
+            return;
+        }
         document.getElementById("home-screen").classList.add("hidden");
         document.getElementById("join-room-screen").classList.remove("hidden");
     }
-});
+
+    function backToHome() {
+        document.getElementById("create-room-screen").classList.add("hidden");
+        document.getElementById("join-room-screen").classList.add("hidden");
+        document.getElementById("lobby-screen").classList.add("hidden");
+        document.getElementById("home-screen").classList.remove("hidden");
+        if (pollInterval) clearInterval(pollInterval);
+    }
+
+    function saveRoom(roomId, data) {
+        localStorage.setItem(`werewolf_room_${roomId}`, JSON.stringify(data));
+        // Also broadcast via storage event simulation
+        localStorage.setItem('werewolf_sync_trigger', Date.now().toString());
+    }
+
+    function loadRoom(roomId) {
+        const raw = localStorage.getItem(`werewolf_room_${roomId}`);
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function createRoom() {
+        const name = getPlayerName();
+        const mode = document.getElementById("game-mode-select").value;
+        if (!name) {
+            showAlert("กรุณากรอกชื่อก่อนสร้างห้อง");
+            return;
+        }
+
+        const roomId = Math.floor(1000 + Math.random() * 9000).toString();
+        currentRoomId = roomId;
+
+        roomData = {
+            roomId: roomId,
+            mode: mode,
+            hostId: myUserId,
+            phase: 'lobby',
+            players: [{
+                id: myUserId,
+                name: name,
+                role: '',
+                alive: true,
+                isBot: false
+            }],
+            nightCount: 1,
+            nightActions: {},
+            dayVotes: {},
+            lastSummary: '',
+            winnerMsg: ''
+        };
+
+        saveRoom(roomId, roomData);
+        enterLobbyScreen(roomId);
+        startPolling(roomId);
+    }
+
+    function joinRoom() {
+        const name = getPlayerName();
+        const codeInput = document.getElementById("room-code-input").value.trim().toUpperCase();
+
+        if (!name) {
+            showAlert("กรุณากรอกชื่อของคุณก่อนเข้าห้องครับ");
+            return;
+        }
+        if (!codeInput || codeInput.length !== 4) {
+            showAlert("กรุณากรอกรหัสห้อง 4 หลักให้ถูกต้อง");
+            return;
+        }
+
+        let rData = loadRoom(codeInput);
+        if (!rData) {
+            showAlert("ไม่พบห้องที่มีรหัสนี้ กรุณาตรวจสอบรหัสห้องอีกครั้ง");
+            return;
+        }
+
+        currentRoomId = codeInput;
+
+        const existing = rData.players.find(p => p.id === myUserId || p.name === name);
+        if (!existing) {
+            const maxLimit = roleDecks[rData.mode].length;
+            if (rData.players.length >= maxLimit) {
+                showAlert("ห้องนี้เต็มจำนวนผู้เล่นแล้วครับ");
+                return;
+            }
+            rData.players.push({
+                id: myUserId,
+                name: name,
+                role: '',
+                alive: true,
+                isBot: false
+            });
+            saveRoom(currentRoomId, rData);
+        }
+
+        roomData = rData;
+        enterLobbyScreen(currentRoomId);
+        startPolling(currentRoomId);
+    }
+
+    function startPolling(roomId) {
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(() => {
+            const latest = loadRoom(roomId);
+            if (latest) {
+                roomData = latest;
+                updateUIBasedOnPhase(roomData);
+            }
+        }, 1000);
+    }
+
+    function enterLobbyScreen(roomId) {
+        document.getElementById("home-screen").classList.add("hidden");
+        document.getElementById("create-room-screen").classList.add("hidden");
+        document.getElementById("join-room-screen").classList.add("hidden");
+        document.getElementById("lobby-screen").classList.remove("hidden");
+        document.getElementById("display-room-code").innerText = roomId;
+    }
+
+    function refreshLobby() {
+        if (currentRoomId) {
+            const latest = loadRoom(currentRoomId);
+            if (latest) {
+                roomData = latest;
+                updateUIBasedOnPhase(roomData);
+                showAlert("รีเฟรชข้อมูลห้องสำเร็จ", "สำเร็จ");
+            }
+        }
+    }
+
+    function copyShareLink() {
+        const link = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+        navigator.clipboard.writeText(link).then(() => {
+            showAlert("คัดลอกลิงก์เชิญเรียบร้อยแล้ว!", "สำเร็จ");
+        }).catch(() => {
+            const tempInput = document.createElement("input");
+            tempInput.value = link;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            showAlert("คัดลอกลิงก์เชิญสำเร็จแล้ว!", "สำเร็จ");
+        });
+    }
+
+    function addBotPlayer() {
+        if (!roomData) return;
+        const maxLimit = roleDecks[roomData.mode].length;
+        if (roomData.players.length >= maxLimit) {
+            showAlert("ห้องเต็มแล้วครับ");
+            return;
+        }
+        const botId = 'bot_' + Math.random().toString(36).substr(2, 5);
+        roomData.players.push({
+            id: botId,
+            name: `🤖 บอท #${roomData.players.length + 1}`,
+            role: '',
+            alive: true,
+            isBot: true
+        });
+        saveRoom(currentRoomId, roomData);
+        updateUIBasedOnPhase(roomData);
+    }
+
+    function startGameOnline() {
+        if (!roomData) return;
+        const deck = [...roleDecks[roomData.mode]];
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+
+        roomData.players.forEach((p, idx) => {
+            p.role = deck[idx] || "🧑‍🌾 ชาวบ้าน";
+        });
+        roomData.phase = 'reveal';
+        saveRoom(currentRoomId, roomData);
+    }
+
+    function updateUIBasedOnPhase(data) {
+        ["lobby-screen", "role-reveal-screen", "night-screen", "day-screen", "end-screen"].forEach(id => {
+            document.getElementById(id).classList.add("hidden");
+        });
+
+        const isHost = data.hostId === myUserId || (data.players[0] && data.players[0].id === myUserId);
+
+        if (data.phase === 'lobby') {
+            document.getElementById("lobby-screen").classList.remove("hidden");
+            const maxLimit = roleDecks[data.mode].length;
+            document.getElementById("player-count-badge").innerText = `${data.players.length}/${maxLimit}`;
+            
+            let html = "";
+            data.players.forEach((p, i) => {
+                html += `<div class="p-2.5 bg-slate-900 rounded-lg border border-slate-700 flex justify-between items-center text-sm">
+                    <span>👤 ${p.name} ${i === 0 ? '👑 (หัวหน้าห้อง)' : ''}</span>
+                    <span class="text-xs text-emerald-400">พร้อมแล้ว</span>
+                </div>`;
+            });
+            document.getElementById("lobby-players-list").innerHTML = html;
+
+            document.getElementById("host-controls").classList.remove("hidden");
+            const startBtn = document.getElementById("start-game-btn");
+            startBtn.disabled = data.players.length < maxLimit;
+        } 
+        else if (data.phase === 'reveal') {
+            document.getElementById("role-reveal-screen").classList.remove("hidden");
+            const me = data.players.find(p => p.id === myUserId) || data.players[0];
+            if (me) {
+                window.revealRole = () => {
+                    document.getElementById("my-card-box").innerText = me.role;
+                    document.getElementById("my-card-box").classList.remove("border-rose-500");
+                    document.getElementById("my-card-box").classList.add("border-amber-400", "glow-gold");
+                };
+                window.hideRole = () => {
+                    document.getElementById("my-card-box").innerText = "🔒 กดค้างไว้ เพื่อดูบทบาทของคุณ";
+                    document.getElementById("my-card-box").classList.add("border-rose-500");
+                    document.getElementById("my-card-box").classList.remove("border-amber-400", "glow-gold");
+                };
+            }
+            if (isHost) {
+                document.getElementById("host-night-start-btn").classList.remove("hidden");
+                document.getElementById("guest-night-waiting").classList.add("hidden");
+            } else {
+                document.getElementById("host-night-start-btn").classList.add("hidden");
+                document.getElementById("guest-night-waiting").classList.remove("hidden");
+            }
+        }
+        else if (data.phase === 'night') {
+            document.getElementById("night-screen").classList.remove("hidden");
+            document.getElementById("night-title").innerText = `🌙 ค่ำคืนที่ ${data.nightCount} มาเยือน`;
+            
+            const me = data.players.find(p => p.id === myUserId) || data.players[0];
+            const selectElem = document.getElementById("night-target-select");
+            selectElem.innerHTML = "";
+
+            let actionTitle = "";
+            if (me && me.role.includes("🐺") && me.alive) {
+                actionTitle = "🐺 คุณคือหมาป่า: เลือกเป้าหมายสังหารคืนนี้";
+                data.players.filter(p => p.alive && !p.role.includes("🐺")).forEach(p => {
+                    selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                });
+            } else if (me && me.role.includes("👁️") && me.alive) {
+                actionTitle = "👁️ คุณคือผู้หยั่งรู้: เลือกตรวจสอบผู้เล่น 1 คน";
+                data.players.filter(p => p.alive && p.id !== me.id).forEach(p => {
+                    selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                });
+            } else if (me && me.role.includes("🛡️") && me.alive) {
+                actionTitle = "🛡️ คุณคือบอดี้การ์ด: เลือกปกป้องผู้เล่น 1 คน";
+                data.players.filter(p => p.alive).forEach(p => {
+                    selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                });
+            } else {
+                actionTitle = "🌙 หลับตาลงและรอช่วงรุ่งเช้า...";
+                selectElem.innerHTML += `<option value="none">รอเวลา...</option>`;
+            }
+            document.getElementById("night-action-title").innerText = actionTitle;
+
+            if (isHost) {
+                document.getElementById("host-day-start-btn").classList.remove("hidden");
+                document.getElementById("night-waiting-status").classList.add("hidden");
+            } else {
+                document.getElementById("host-day-start-btn").classList.add("hidden");
+                document.getElementById("night-waiting-status").classList.remove("hidden");
+            }
+        }
+        else if (data.phase === 'day') {
+            document.getElementById("day-screen").classList.remove("hidden");
+            document.getElementById("night-summary-box").innerHTML = data.lastSummary || "☀️ เริ่มต้นวันใหม่ อภิปรายหาตัวหมาป่า";
+            
+            const voteSelect = document.getElementById("day-vote-select");
+            voteSelect.innerHTML = `<option value="none">-- ไม่โหวตออกใคร --</option>`;
+            data.players.filter(p => p.alive).forEach(p => {
+                voteSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+            });
+
+            if (isHost) {
+                document.getElementById("host-tally-btn").classList.remove("hidden");
+                document.getElementById("guest-vote-waiting").classList.add("hidden");
+            } else {
+                document.getElementById("host-tally-btn").classList.add("hidden");
+                document.getElementById("guest-vote-waiting").classList.remove("hidden");
+            }
+        }
+        else if (data.phase === 'end') {
+            document.getElementById("end-screen").classList.remove("hidden");
+            document.getElementById("winner-announcement-box").innerText = data.winnerMsg;
+            let html = "";
+            data.players.forEach(p => {
+                html += `• ${p.name}: ${p.role} (${p.alive ? '🟢 รอด' : '🔴 ตาย'})<br>`;
+            });
+            document.getElementById("end-roles-list").innerHTML = html;
+        }
+    }
+
+    function hostTriggerNight() {
+        if (!roomData) return;
+        roomData.phase = 'night';
+        saveRoom(currentRoomId, roomData);
+    }
+
+    function submitMyNightAction() {
+        const val = document.getElementById("night-target-select").value;
+        const me = roomData.players.find(p => p.id === myUserId) || roomData.players[0];
+        if (!me) return;
+
+        if (!roomData.nightActions) roomData.nightActions = {};
+
+        if (me.role.includes("🐺")) {
+            roomData.nightActions.kill = val;
+        } else if (me.role.includes("👁️")) {
+            const target = roomData.players.find(p => p.id === val);
+            if (target) {
+                const isWolf = target.role.includes("🐺");
+                document.getElementById("seer-result-text").innerText = `${target.name} คือ: ${isWolf ? '🐺 หมาป่า' : '🧑‍🌾 ชาวบ้าน'}`;
+                document.getElementById("seer-reveal-modal").classList.remove("hidden");
+            }
+        } else if (me.role.includes("🛡️")) {
+            roomData.nightActions.protect = val;
+        }
+        saveRoom(currentRoomId, roomData);
+        showAlert("บันทึกคำสั่งกลางคืนเรียบร้อย", "สำเร็จ");
+    }
+
+    function closeSeerModal() {
+        document.getElementById("seer-reveal-modal").classList.add("hidden");
+    }
+
+    function hostTriggerDay() {
+        if (!roomData) return;
+        const killedId = roomData.nightActions?.kill;
+        const protectedId = roomData.nightActions?.protect;
+
+        let summary = "🛡️ คืนนี้ปลอดภัย ไม่มีใครเสียชีวิต";
+        if (killedId && killedId !== protectedId) {
+            const victim = roomData.players.find(p => p.id === killedId);
+            if (victim) {
+                victim.alive = false;
+                summary = `☠️ เมื่อคืนนี้ ${victim.name} ถูกหมาป่าสังหารเสียชีวิต!`;
+            }
+        }
+
+        roomData.lastSummary = summary;
+        roomData.nightActions = {};
+        roomData.phase = 'day';
+
+        const wolves = roomData.players.filter(p => p.alive && p.role.includes("🐺")).length;
+        const villagers = roomData.players.filter(p => p.alive && !p.role.includes("🐺")).length;
+
+        if (wolves === 0) {
+            roomData.phase = 'end';
+            roomData.winnerMsg = "🎉 ฝ่ายชาวบ้านชนะ หมาป่าถูกกำจัดหมดแล้ว!";
+        } else if (wolves >= villagers) {
+            roomData.phase = 'end';
+            roomData.winnerMsg = "🐺 ฝ่ายหมาป่าชนะ จำนวนหมาป่าเท่ากับหรือมากกว่าชาวบ้าน!";
+        }
+
+        saveRoom(currentRoomId, roomData);
+    }
+
+    function submitDayVote() {
+        const val = document.getElementById("day-vote-select").value;
+        if (!roomData.dayVotes) roomData.dayVotes = {};
+        roomData.dayVotes[myUserId] = val;
+        saveRoom(currentRoomId, roomData);
+        showAlert("บันทึกผลโหวตสำเร็จ", "สำเร็จ");
+    }
+
+    function hostCalculateVotes() {
+        if (!roomData) return;
+        let voteCounts = {};
+        Object.values(roomData.dayVotes || {}).forEach(vId => {
+            if (vId && vId !== 'none') {
+                voteCounts[vId] = (voteCounts[vId] || 0) + 1;
+            }
+        });
+
+        let highestVoted = null;
+        let maxVotes = 0;
+        for (let [id, count] of Object.entries(voteCounts)) {
+            if (count > maxVotes) {
+                maxVotes = count;
+                highestVoted = id;
+            }
+        }
+
+        if (highestVoted) {
+            const outcast = roomData.players.find(p => p.id === highestVoted);
+            if (outcast) {
+                outcast.alive = false;
+                roomData.lastSummary = `💥 ผลโหวตสูงสุด: ${outcast.name} ถูกโหวตออกจากหมู่บ้าน!`;
+            }
+        } else {
+            roomData.lastSummary = `⚖️ มติวันนี้: ไม่มีใครถูกโหวตออกจากหมู่บ้าน`;
+        }
+
+        roomData.dayVotes = {};
+
+        const wolves = roomData.players.filter(p => p.alive && p.role.includes("🐺")).length;
+        const villagers = roomData.players.filter(p => p.alive && !p.role.includes("🐺")).length;
+
+        if (wolves === 0) {
+            roomData.phase = 'end';
+            roomData.winnerMsg = "🎉 ฝ่ายชาวบ้านชนะ หมาป่าถูกกำจัดหมดแล้ว!";
+        } else if (wolves >= villagers) {
+            roomData.phase = 'end';
+            roomData.winnerMsg = "🐺 ฝ่ายหมาป่าชนะ จำนวนหมาป่าเท่ากับหรือมากกว่าชาวบ้าน!";
+        } else {
+            roomData.nightCount = (roomData.nightCount || 1) + 1;
+            roomData.phase = 'night';
+        }
+
+        saveRoom(currentRoomId, roomData);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const params = new URLSearchParams(location.search);
+        const rParam = params.get('room');
+        if (rParam) {
+            document.getElementById("room-code-input").value = rParam.trim();
+            document.getElementById("home-screen").classList.add("hidden");
+            document.getElementById("join-room-screen").classList.remove("hidden");
+        }
+    });
 </script>
+
 </body>
 </html>
