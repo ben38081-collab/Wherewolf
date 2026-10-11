@@ -20,9 +20,11 @@
 <body class="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
 
 <div class="w-full max-w-md glass-panel rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-    <!-- Header -->
-    <div class="text-center mb-6">
-        <h1 class="text-3xl font-extrabold text-amber-400 tracking-wide flex items-center justify-center gap-2">
+    <div class="text-center mb-6 relative">
+        <button onclick="openConfigModal()" class="absolute right-0 top-0 text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 rounded-lg transition flex items-center gap-1">
+            ⚙️ ตั้งค่า Firebase
+        </button>
+        <h1 class="text-3xl font-extrabold text-amber-400 tracking-wide flex items-center justify-center gap-2 mt-4">
             🐺 Werewolf Online
         </h1>
         <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์ Cloud Firestore สดๆ เรียลไทม์ พร้อมเล่นข้ามเครื่อง!</p>
@@ -39,7 +41,42 @@
         </div>
     </div>
 
-    <!-- Screen 1: Home -->
+    <!-- Firebase Config Modal -->
+    <div id="config-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-amber-500/30 p-6 rounded-2xl max-w-sm w-full text-left space-y-3 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="text-base font-bold text-amber-400 text-center flex items-center justify-center gap-1">
+                ⚙️ ตั้งค่า Firebase Project Config
+            </h3>
+            <p class="text-[11px] text-slate-400 text-center">
+                ปรับเปลี่ยน Firebase Config ของโปรเจกต์คุณเองเพิ่มเติม
+            </p>
+
+            <div>
+                <label class="block text-xs font-semibold text-amber-300 mb-1">API Key:</label>
+                <input type="text" id="cfg-api-key" placeholder="AIzaSy..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-400">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-amber-300 mb-1">Auth Domain:</label>
+                <input type="text" id="cfg-auth-domain" placeholder="project-id.firebaseapp.com" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-400">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-amber-300 mb-1">Project ID:</label>
+                <input type="text" id="cfg-project-id" placeholder="project-id" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-400">
+            </div>
+
+            <div class="pt-2 flex gap-2">
+                <button onclick="saveFirebaseConfig()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition">
+                    💾 บันทึกและเชื่อมต่อ
+                </button>
+                <button onclick="closeConfigModal()" class="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium rounded-xl text-xs">
+                    ปิด
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="home-screen" class="space-y-4">
         <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 space-y-3">
             <div>
@@ -108,7 +145,6 @@
         </button>
     </div>
 
-    <!-- Screen 2: Lobby -->
     <div id="lobby-screen" class="hidden space-y-4">
         <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center space-y-2">
             <span class="text-xs text-amber-300 font-bold uppercase tracking-wider block">รหัสห้องเล่นเกม</span>
@@ -143,7 +179,6 @@
         </div>
     </div>
 
-    <!-- Screen 3: Role Reveal -->
     <div id="role-reveal-screen" class="hidden space-y-4 text-center">
         <h2 class="text-xl font-bold text-amber-300">🃏 บทบาทของคุณ</h2>
         <p class="text-xs text-slate-400">แตะค้างที่การ์ดเพื่อดูบทบาทของคุณ</p>
@@ -163,7 +198,6 @@
         </div>
     </div>
 
-    <!-- Screen 4: Night Action -->
     <div id="night-screen" class="hidden space-y-4">
         <div class="text-center">
             <h2 id="night-title" class="text-xl font-bold text-indigo-300">🌙 ค่ำคืนมาเยือน...</h2>
@@ -194,7 +228,6 @@
         </div>
     </div>
 
-    <!-- Screen 5: Day Voting -->
     <div id="day-screen" class="hidden space-y-4">
         <div class="text-center">
             <h2 id="day-title" class="text-xl font-bold text-amber-400">☀️ รุ่งเช้า! เริ่มการอภิปราย</h2>
@@ -220,7 +253,6 @@
         </div>
     </div>
 
-    <!-- Screen 6: Game End -->
     <div id="end-screen" class="hidden space-y-4 text-center">
         <h2 class="text-2xl font-black text-amber-400">🏆 จบเกม!</h2>
         <div id="winner-announcement-box" class="text-lg font-bold text-white bg-slate-800/80 p-4 rounded-xl border border-amber-400/50"></div>
@@ -230,601 +262,591 @@
             <div id="end-roles-list" class="text-xs space-y-1.5 max-h-48 overflow-y-auto"></div>
         </div>
 
-        <button onclick="location.href = location.pathname;" class="w-full py-3 bg-slate-700 hover:bg-slate-600 font-bold rounded-xl">
+        <button onclick="location.reload();" class="w-full py-3 bg-slate-700 hover:bg-slate-600 font-bold rounded-xl">
             🔄 กลับหน้าแรก / เล่นรอบใหม่
         </button>
     </div>
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'werewolf-online-default';
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-
-let db, auth, currentUser;
-let currentRoomId = null;
-let roomData = null;
-let unsubscribeRoom = null;
-let myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
-
-const roleDecks = {
-    mode1: [
-        "🐺 หมาป่า (Werewolf)", "🐺 หมาป่า (Werewolf)", 
-        "👁️ ผู้หยั่งรู้ (Seer)", "🛡️ บอดี้การ์ด (Bodyguard)", 
-        "🧑‍🌾 ชาวบ้าน (Villager)", "🧑‍🌾 ชาวบ้าน (Villager)"
-    ],
-    mode2: [
-        "🐺 หมาป่า (Werewolf)", 
-        "👁️ ผู้หยั่งรู้ (Seer)", "🛡️ บอดี้การ์ด (Bodyguard)", 
-        "🧑‍🌾 ชาวบ้าน (Villager)", "🧑‍🌾 ชาวบ้าน (Villager)", 
-        "🪵 ยาจก (Beggar)"
-    ],
-    mode3: [
-        "🐺 หมาป่า (Werewolf)", "🐺 หมาป่า (Werewolf)", 
-        "👁️ ผู้หยั่งรู้ (Seer)", "🛡️ บอดี้การ์ด (Bodyguard)", 
-        "🧑‍🌾 ชาวบ้าน (Villager)", "🧑‍🌾 ชาวบ้าน (Villager)", 
-        "🪵 ยาจก (Beggar)"
-    ]
-};
-
-async function initFirebase() {
-    if (!firebaseConfig) {
-        document.getElementById("firebase-status").innerHTML = "⚠️ ทำงานในโหมด Offline (ไม่พบ Config Firebase)";
-        document.getElementById("firebase-status").className = "text-center text-xs text-rose-400";
-        return;
-    }
-    try {
-        const app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-            await signInAnonymously(auth);
-        }
-        currentUser = auth.currentUser;
-        if (currentUser) {
-            myUserId = currentUser.uid;
-        }
-        document.getElementById("firebase-status").innerHTML = "⚡ เชื่อมต่อ Cloud Firestore สำเร็จแล้ว (เรียลไทม์)";
-        document.getElementById("firebase-status").className = "text-center text-xs text-emerald-400";
-    } catch (e) {
-        console.error("Firebase init error:", e);
-        document.getElementById("firebase-status").innerHTML = "⚠️ เชื่อมต่อ Cloud ไม่สำเร็จ ใช้โหมดสำรอง";
-    }
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-    initFirebase();
-    updateModeInfo();
-    const params = new URLSearchParams(location.search);
-    const rParam = params.get('room');
-    if (rParam) {
-        document.getElementById("room-code-input").value = rParam.trim().toUpperCase();
-        document.getElementById("home-screen").classList.add("hidden");
-        document.getElementById("join-room-screen").classList.remove("hidden");
-    }
-});
-
-window.updateModeInfo = function() {
-    const mode = document.getElementById("game-mode-select").value;
-    const box = document.getElementById("mode-info-box");
-    if (mode === "mode1") {
-        box.innerHTML = "<b>รูปแบบที่ 1 (6 คน):</b><br>• 🐺 หมาป่า 2 ใบ<br>• 👁️ ผู้หยั่งรู้ 1 ใบ<br>• 🛡️ บอดี้การ์ด 1 ใบ<br>• 🧑‍🌾 ชาวบ้าน 2 ใบ";
-    } else if (mode === "mode2") {
-        box.innerHTML = "<b>รูปแบบที่ 2 (6 คน):</b><br>• 🐺 หมาป่า 1 ใบ<br>• 👁️ ผู้หยั่งรู้ 1 ใบ<br>• 🛡️ บอดี้การ์ด 1 ใบ<br>• 🧑‍🌾 ชาวบ้าน 2 ใบ<br>• 🪵 ยาจก 1 ใบ";
-    } else {
-        box.innerHTML = "<b>รูปแบบที่ 3 (7 คน):</b><br>• 🐺 หมาป่า 2 ใบ<br>• 👁️ ผู้หยั่งรู้ 1 ใบ<br>• 🛡️ บอดี้การ์ด 1 ใบ<br>• 🧑‍🌾 ชาวบ้าน 2 ใบ<br>• 🪵 ยาจก 1 ใบ";
-    }
-};
-
-window.showAlert = function(msg, title = "แจ้งเตือน") {
-    document.getElementById("modal-title").innerText = title;
-    document.getElementById("modal-message").innerText = msg;
-    document.getElementById("custom-modal").classList.remove("hidden");
-};
-
-window.closeModal = function() {
-    document.getElementById("custom-modal").classList.add("hidden");
-};
-
-window.syncNameInputs = function(val) {
-    document.getElementById("my-name-input").value = val;
-    document.getElementById("join-name-input").value = val;
-};
-
-function getPlayerName() {
-    return document.getElementById("my-name-input").value.trim() || document.getElementById("join-name-input").value.trim();
-}
-
-window.showCreateRoomOptions = function() {
-    const name = getPlayerName();
-    if (!name) {
-        window.showAlert("กรุณากรอกชื่อผู้เล่นของคุณก่อนสร้างห้องครับ");
-        return;
-    }
-    document.getElementById("home-screen").classList.add("hidden");
-    document.getElementById("create-room-screen").classList.remove("hidden");
-};
-
-window.showJoinRoomOptions = function() {
-    const name = getPlayerName();
-    if (!name) {
-        window.showAlert("กรุณากรอกชื่อของคุณก่อนเข้าร่วมห้องครับ");
-        return;
-    }
-    document.getElementById("home-screen").classList.add("hidden");
-    document.getElementById("join-room-screen").classList.remove("hidden");
-};
-
-window.backToHome = function() {
-    if (unsubscribeRoom) {
-        unsubscribeRoom();
-        unsubscribeRoom = null;
-    }
-    document.getElementById("create-room-screen").classList.add("hidden");
-    document.getElementById("join-room-screen").classList.add("hidden");
-    document.getElementById("lobby-screen").classList.add("hidden");
-    document.getElementById("home-screen").classList.remove("hidden");
-};
-
-async function saveRoomToCloud(roomId, data) {
-    if (db) {
-        try {
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', 'rooms_' + roomId), data);
-        } catch (e) {
-            console.error("Cloud save error:", e);
-        }
-    }
-    localStorage.setItem('werewolf_room_' + roomId, JSON.stringify(data));
-}
-
-async function getRoomFromCloud(roomId) {
-    if (db) {
-        try {
-            const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', 'rooms_' + roomId));
-            if (snap.exists()) {
-                return snap.data();
-            }
-        } catch (e) {
-            console.error("Cloud get error:", e);
-        }
-    }
-    const val = localStorage.getItem('werewolf_room_' + roomId);
-    return val ? JSON.parse(val) : null;
-}
-
-window.createRoom = async function() {
-    const name = getPlayerName();
-    const mode = document.getElementById("game-mode-select").value;
-    if (!name) {
-        window.showAlert("กรุณากรอกชื่อก่อนสร้างห้อง");
-        return;
-    }
-
-    const roomId = Math.floor(1000 + Math.random() * 9000).toString();
-    currentRoomId = roomId;
-
-    const initialRoomData = {
-        roomId: roomId,
-        mode: mode,
-        hostId: myUserId,
-        phase: 'lobby',
-        players: [{
-            id: myUserId,
-            name: name,
-            role: '',
-            alive: true,
-            isBot: false
-        }],
-        nightCount: 1,
-        nightActions: {},
-        lastBodyguardTarget: null,
-        dayVotes: {},
-        lastSummary: '',
-        winnerMsg: '',
-        updatedAt: Date.now()
+    // Updated configuration with provided Firebase Credentials
+    let defaultConfig = {
+        apiKey: "AIzaSyCT3WY8061Xgw8BIdEXIxlCmdLKlaeop_Q",
+        authDomain: "game-a13b7.firebaseapp.com",
+        projectId: "game-a13b7",
+        storageBucket: "game-a13b7.firebasestorage.app",
+        messagingSenderId: "598401955327",
+        appId: "1:598401955327:web:4b4678de0a67bc3e7963ca",
+        measurementId: "G-1FRWWHG3RS"
     };
 
-    await saveRoomToCloud(roomId, initialRoomData);
-    roomData = initialRoomData;
-    listenToRoom(roomId);
-    enterLobbyScreen(roomId);
-};
+    let db, auth, currentUser;
+    let currentRoomId = null;
+    let roomData = null;
+    let unsubscribeRoom = null;
+    let myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
 
-window.joinRoom = async function() {
-    const name = getPlayerName();
-    const codeInput = document.getElementById("room-code-input").value.trim().toUpperCase();
+    const roleDecks = {
+        mode1: [
+            "🐺 หมาป่า (Werewolf)", "🐺 หมาป่า (Werewolf)",
+            "👁️ ผู้หยั่งรู้ (Seer)", "🛡️ บอดี้การ์ด (Bodyguard)",
+            "🧑‍🌾 ชาวบ้าน (Villager)", "🧑‍🌾 ชาวบ้าน (Villager)"
+        ],
+        mode2: [
+            "🐺 หมาป่า (Werewolf)", 
+            "👁️ ผู้หยั่งรู้ (Seer)", "🛡️ บอดี้การ์ด (Bodyguard)",
+            "🧑‍🌾 ชาวบ้าน (Villager)", "🧑‍🌾 ชาวบ้าน (Villager)",
+            "🪵 ยาจก (Beggar)"
+        ],
+        mode3: [
+            "🐺 หมาป่า (Werewolf)", "🐺 หมาป่า (Werewolf)",
+            "👁️ ผู้หยั่งรู้ (Seer)", "🛡️ บอดี้การ์ด (Bodyguard)",
+            "🧑‍🌾 ชาวบ้าน (Villager)", "🧑‍🌾 ชาวบ้าน (Villager)",
+            "🪵 ยาจก (Beggar)"
+        ]
+    };
 
-    if (!name) {
-        window.showAlert("กรุณากรอกชื่อของคุณก่อนเข้าห้องครับ");
-        return;
+    window.showModal = function(title, msg) {
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-message').innerText = msg;
+        document.getElementById('custom-modal').classList.remove('hidden');
     }
-    if (!codeInput || codeInput.length !== 4) {
-        window.showAlert("กรุณากรอกรหัสห้อง 4 หลักให้ถูกต้อง");
-        return;
+
+    window.closeModal = function() {
+        document.getElementById('custom-modal').classList.add('hidden');
     }
 
-    let rData = await getRoomFromCloud(codeInput);
-    if (!rData) {
-        window.showAlert("ไม่พบห้องที่มีรหัส " + codeInput + " บน Cloud Firestore กรุณาตรวจสอบรหัสห้องอีกครั้ง");
-        return;
+    window.openConfigModal = function() {
+        const saved = localStorage.getItem('werewolf_fb_config');
+        let cfg = defaultConfig;
+        if(saved) {
+            try { cfg = JSON.parse(saved); } catch(e){}
+        }
+        document.getElementById('cfg-api-key').value = cfg.apiKey;
+        document.getElementById('cfg-auth-domain').value = cfg.authDomain;
+        document.getElementById('cfg-project-id').value = cfg.projectId;
+        document.getElementById('config-modal').classList.remove('hidden');
     }
 
-    currentRoomId = codeInput;
-    let existing = rData.players.find(p => p.id === myUserId);
-    if (!existing) {
-        // Check if name already exists
-        const nameMatch = rData.players.find(p => p.name === name);
-        if (nameMatch) {
-            nameMatch.id = myUserId; // Reclaim session
+    window.closeConfigModal = function() {
+        document.getElementById('config-modal').classList.add('hidden');
+    }
+
+    window.saveFirebaseConfig = async function() {
+        const apiKey = document.getElementById('cfg-api-key').value.trim();
+        const authDomain = document.getElementById('cfg-auth-domain').value.trim();
+        const projectId = document.getElementById('cfg-project-id').value.trim();
+
+        if(!apiKey || !authDomain || !projectId) {
+            window.showModal("แจ้งเตือน", "กรุณากรอกข้อมูล Firebase ให้ครบถ้วน");
+            return;
+        }
+
+        const newCfg = {
+            apiKey: apiKey,
+            authDomain: authDomain,
+            projectId: projectId,
+            storageBucket: `${projectId}.appspot.com`,
+            messagingSenderId: "598401955327",
+            appId: "1:598401955327:web:4b4678de0a67bc3e7963ca"
+        };
+
+        localStorage.setItem('werewolf_fb_config', JSON.stringify(newCfg));
+        window.closeConfigModal();
+        window.showModal("สำเร็จ", "บันทึกการตั้งค่าแล้ว กำลังเชื่อมต่อใหม่...");
+        await initFirebase(newCfg);
+    }
+
+    window.syncNameInputs = function(val) {
+        document.getElementById('my-name-input').value = val;
+        document.getElementById('join-name-input').value = val;
+    }
+
+    window.backToHome = function() {
+        document.getElementById('create-room-screen').classList.add('hidden');
+        document.getElementById('join-room-screen').classList.add('hidden');
+        document.getElementById('home-screen').classList.remove('hidden');
+    }
+
+    window.showCreateRoomOptions = function() {
+        const name = document.getElementById('my-name-input').value.trim();
+        if(!name) {
+            window.showModal("แจ้งเตือน", "กรุณากรอกชื่อผู้เล่นก่อนสร้างห้องครับ");
+            return;
+        }
+        document.getElementById('home-screen').classList.add('hidden');
+        document.getElementById('create-room-screen').classList.remove('hidden');
+        window.updateModeInfo();
+    }
+
+    window.showJoinRoomOptions = function() {
+        const name = document.getElementById('join-name-input').value.trim();
+        if(!name) {
+            window.showModal("แจ้งเตือน", "กรุณากรอกชื่อผู้เล่นก่อนเข้าร่วมห้องครับ");
+            return;
+        }
+        document.getElementById('home-screen').classList.add('hidden');
+        document.getElementById('join-room-screen').classList.remove('hidden');
+    }
+
+    window.updateModeInfo = function() {
+        const mode = document.getElementById('game-mode-select').value;
+        const box = document.getElementById('mode-info-box');
+        if (mode === 'mode1') {
+            box.innerHTML = "<b>รูปแบบที่ 1 (6 คน):</b><br>• 🐺 หมาป่า 2<br>• 👁️ ผู้หยั่งรู้ 1<br>• 🛡️ บอดี้การ์ด 1<br>• 🧑‍🌾 ชาวบ้าน 2";
+        } else if (mode === 'mode2') {
+            box.innerHTML = "<b>รูปแบบที่ 2 (6 คน):</b><br>• 🐺 หมาป่า 1<br>• 👁️ ผู้หยั่งรู้ 1<br>• 🛡️ บอดี้การ์ด 1<br>• 🧑‍🌾 ชาวบ้าน 2<br>• 🪵 ยาจก 1";
         } else {
-            const maxLimit = roleDecks[rData.mode].length;
-            if (rData.players.length >= maxLimit) {
-                window.showAlert("ห้องนี้เต็มจำนวนผู้เล่นแล้วครับ");
-                return;
+            box.innerHTML = "<b>รูปแบบที่ 3 (7 คน):</b><br>• 🐺 หมาป่า 2<br>• 👁️ ผู้หยั่งรู้ 1<br>• 🛡️ บอดี้การ์ด 1<br>• 🧑‍🌾 ชาวบ้าน 2<br>• 🪵 ยาจก 1";
+        }
+    }
+
+    async function initFirebase(customConfig = null) {
+        try {
+            let configToUse = defaultConfig;
+            const saved = localStorage.getItem('werewolf_fb_config');
+            if(customConfig) {
+                configToUse = customConfig;
+            } else if(saved) {
+                try { configToUse = JSON.parse(saved); } catch(e){}
             }
-            rData.players.push({
+
+            const app = initializeApp(configToUse);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            const userCred = await signInAnonymously(auth);
+            currentUser = userCred.user;
+            document.getElementById('firebase-status').innerHTML = "🟢 เชื่อมต่อ Cloud Firestore เรียบร้อย";
+        } catch (e) {
+            console.error(e);
+            document.getElementById('firebase-status').innerHTML = "⚠️ เชื่อมต่อล้มเหลว ตรวจสอบ Rules ใน Firebase Console";
+        }
+    }
+
+    window.onload = async () => {
+        await initFirebase();
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        if (roomParam) {
+            document.getElementById('room-code-input').value = roomParam;
+            window.showJoinRoomOptions();
+        }
+    };
+
+    window.createRoom = async function() {
+        if(!db) {
+            window.showModal("แจ้งเตือน", "ไม่สามารถเชื่อมต่อ Firebase ได้");
+            return;
+        }
+        const name = document.getElementById('my-name-input').value.trim();
+        const mode = document.getElementById('game-mode-select').value;
+        if(!name) return window.showModal("แจ้งเตือน", "กรุณากรอกชื่อ");
+
+        const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+        currentRoomId = roomCode;
+
+        const initialData = {
+            hostId: myUserId,
+            mode: mode,
+            maxPlayers: roleDecks[mode].length,
+            status: 'lobby',
+            players: [{
                 id: myUserId,
                 name: name,
-                role: '',
-                alive: true,
-                isBot: false
-            });
+                role: null,
+                alive: true
+            }],
+            nightState: { step: 0, killed: null, protected: null, seerResult: null },
+            votes: {},
+            winner: null
+        };
+
+        try {
+            await setDoc(doc(db, "werewolf_rooms", roomCode), initialData);
+            listenToRoom(roomCode);
+            enterLobbyScreen(roomCode, initialData);
+        } catch(err) {
+            window.showModal("ข้อผิดพลาด", err.message);
         }
-        rData.updatedAt = Date.now();
-        await saveRoomToCloud(codeInput, rData);
     }
 
-    roomData = rData;
-    listenToRoom(codeInput);
-    enterLobbyScreen(codeInput);
-};
+    window.joinRoom = async function() {
+        if(!db) {
+            window.showModal("แจ้งเตือน", "ไม่สามารถเชื่อมต่อ Firebase ได้");
+            return;
+        }
+        const name = document.getElementById('join-name-input').value.trim();
+        const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+        if(!name || code.length !== 4) return window.showModal("แจ้งเตือน", "กรุณากรอกชื่อและรหัสห้อง 4 หลักให้ถูกต้อง");
 
-function listenToRoom(roomId) {
-    if (unsubscribeRoom) unsubscribeRoom();
-    if (db) {
-        unsubscribeRoom = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', 'rooms_' + roomId), (docSnap) => {
-            if (docSnap.exists()) {
-                roomData = docSnap.data();
-                updateUIBasedOnPhase(roomData);
+        currentRoomId = code;
+        try {
+            const roomRef = doc(db, "werewolf_rooms", code);
+            const snap = await getDoc(roomRef);
+            if(!snap.exists()) {
+                return window.showModal("แจ้งเตือน", "ไม่พบห้องรหัสนี้ในระบบ Cloud");
             }
-        }, (error) => {
-            console.error("Firestore snapshot error:", error);
+            const data = snap.data();
+            if(data.status !== 'lobby') {
+                return window.showModal("แจ้งเตือน", "เกมในห้องนี้เริ่มไปแล้ว ไม่สามารถเข้าร่วมได้");
+            }
+            if(data.players.length >= data.maxPlayers) {
+                return window.showModal("แจ้งเตือน", "ห้องนี้เต็มแล้ว");
+            }
+            if(!data.players.some(p => p.id === myUserId)) {
+                data.players.push({ id: myUserId, name: name, role: null, alive: true });
+                await setDoc(roomRef, data);
+            }
+            listenToRoom(code);
+        } catch(err) {
+            window.showModal("ข้อผิดพลาด", err.message);
+        }
+    }
+
+    function listenToRoom(roomCode) {
+        if(!db) return;
+        if(unsubscribeRoom) unsubscribeRoom();
+
+        unsubscribeRoom = onSnapshot(doc(db, "werewolf_rooms", roomCode), (docSnap) => {
+            if(!docSnap.exists()) return;
+            roomData = docSnap.data();
+            updateUIBasedOnRoomState();
         });
-    } else {
-        // Fallback interval
-        setInterval(async () => {
-            const latest = await getRoomFromCloud(roomId);
-            if (latest) {
-                roomData = latest;
-                updateUIBasedOnPhase(roomData);
-            }
-        }, 1500);
-    }
-}
-
-function enterLobbyScreen(roomId) {
-    document.getElementById("home-screen").classList.add("hidden");
-    document.getElementById("create-room-screen").classList.add("hidden");
-    document.getElementById("join-room-screen").classList.add("hidden");
-    document.getElementById("lobby-screen").classList.remove("hidden");
-    document.getElementById("display-room-code").innerText = roomId;
-}
-
-window.copyShareLink = function() {
-    const link = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
-    navigator.clipboard.writeText(link).then(() => {
-        window.showAlert("คัดลอกลิงก์เชิญเรียบร้อยแล้ว ส่งให้เพื่อนกดเข้าได้เลย!", "สำเร็จ");
-    }).catch(() => {
-        window.showAlert("คัดลอกลิงก์: " + link, "ลิงก์ห้องเกม");
-    });
-};
-
-window.addBotPlayer = async function() {
-    if (!roomData) return;
-    const maxLimit = roleDecks[roomData.mode].length;
-    if (roomData.players.length >= maxLimit) {
-        window.showAlert("ห้องเต็มแล้วครับ");
-        return;
-    }
-    const botId = 'bot_' + Math.random().toString(36).substr(2, 5);
-    roomData.players.push({
-        id: botId,
-        name: `🤖 บอท #${roomData.players.length + 1}`,
-        role: '',
-        alive: true,
-        isBot: true
-    });
-    roomData.updatedAt = Date.now();
-    await saveRoomToCloud(currentRoomId, roomData);
-};
-
-window.startGameOnline = async function() {
-    if (!roomData) return;
-    const deck = [...roleDecks[roomData.mode]];
-    for (let i = deck.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [deck[i], deck[j]] = [deck[j], deck[i]];
     }
 
-    roomData.players.forEach((p, idx) => {
-        p.role = deck[idx] || "🧑‍🌾 ชาวบ้าน (Villager)";
-    });
-    roomData.phase = 'reveal';
-    roomData.updatedAt = Date.now();
-    await saveRoomToCloud(currentRoomId, roomData);
-};
+    function enterLobbyScreen(code, data) {
+        document.getElementById('create-room-screen').classList.add('hidden');
+        document.getElementById('join-room-screen').classList.add('hidden');
+        document.getElementById('lobby-screen').classList.remove('hidden');
+        document.getElementById('display-room-code').innerText = code;
+        renderLobbyPlayers(data);
+    }
 
-function updateUIBasedOnPhase(data) {
-    ["lobby-screen", "role-reveal-screen", "night-screen", "day-screen", "end-screen"].forEach(id => {
-        document.getElementById(id).classList.add("hidden");
-    });
-
-    const isHost = data.hostId === myUserId || (data.players[0] && data.players[0].id === myUserId);
-
-    if (data.phase === 'lobby') {
-        document.getElementById("lobby-screen").classList.remove("hidden");
-        const maxLimit = roleDecks[data.mode].length;
-        document.getElementById("player-count-badge").innerText = `${data.players.length}/${maxLimit}`;
-        
-        let html = "";
-        data.players.forEach((p, i) => {
-            html += `<div class="p-2.5 bg-slate-900 rounded-lg border border-slate-700 flex justify-between items-center text-sm">
-                <span>👤 ${p.name} ${i === 0 ? '👑 (หัวหน้าห้อง)' : ''}</span>
-                <span class="text-xs text-emerald-400">พร้อมแล้ว</span>
+    function renderLobbyPlayers(data) {
+        const listDiv = document.getElementById('lobby-players-list');
+        listDiv.innerHTML = "";
+        data.players.forEach((p, idx) => {
+            listDiv.innerHTML += `<div class="bg-slate-900 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center text-xs">
+                <span>👤 คนที่ ${idx+1}: <b>${p.name}</b> ${p.id === data.hostId ? '👑 (หัวหน้าห้อง)' : ''}</span>
             </div>`;
         });
-        document.getElementById("lobby-players-list").innerHTML = html;
+        document.getElementById('player-count-badge').innerText = `${data.players.length}/${data.maxPlayers}`;
 
-        if (isHost) {
-            document.getElementById("host-controls").classList.remove("hidden");
-            document.getElementById("guest-waiting-msg").classList.add("hidden");
-            const startBtn = document.getElementById("start-game-btn");
-            startBtn.disabled = data.players.length < maxLimit;
+        if(data.hostId === myUserId) {
+            document.getElementById('host-controls').classList.remove('hidden');
+            document.getElementById('guest-waiting-msg').classList.add('hidden');
+            const startBtn = document.getElementById('start-game-btn');
+            if(data.players.length >= 3) {
+                startBtn.disabled = false;
+            } else {
+                startBtn.disabled = true;
+            }
         } else {
-            document.getElementById("host-controls").classList.add("hidden");
-            document.getElementById("guest-waiting-msg").classList.remove("hidden");
-        }
-    } 
-    else if (data.phase === 'reveal') {
-        document.getElementById("role-reveal-screen").classList.remove("hidden");
-        const me = data.players.find(p => p.id === myUserId) || data.players[0];
-        if (me) {
-            window.revealRole = () => {
-                document.getElementById("my-card-box").innerText = me.role;
-                document.getElementById("my-card-box").classList.remove("border-rose-500");
-                document.getElementById("my-card-box").classList.add("border-amber-400", "glow-gold");
-            };
-            window.hideRole = () => {
-                document.getElementById("my-card-box").innerText = "🔒 กดค้างไว้ เพื่อดูบทบาทของคุณ";
-                document.getElementById("my-card-box").classList.add("border-rose-500");
-                document.getElementById("my-card-box").classList.remove("border-amber-400", "glow-gold");
-            };
-        }
-        if (isHost) {
-            document.getElementById("host-night-start-btn").classList.remove("hidden");
-            document.getElementById("guest-night-waiting").classList.add("hidden");
-        } else {
-            document.getElementById("host-night-start-btn").classList.add("hidden");
-            document.getElementById("guest-night-waiting").classList.remove("hidden");
+            document.getElementById('host-controls').classList.add('hidden');
+            document.getElementById('guest-waiting-msg').classList.remove('hidden');
         }
     }
-    else if (data.phase === 'night') {
-        document.getElementById("night-screen").classList.remove("hidden");
-        document.getElementById("night-title").innerText = `🌙 ค่ำคืนที่ ${data.nightCount} มาเยือน`;
-        document.getElementById("narrator-text").innerText = "ทุกคนหลับตาลง... ค่ำคืนอันมืดมิดได้เริ่มต้นขึ้นแล้ว";
-        
-        const me = data.players.find(p => p.id === myUserId) || data.players[0];
-        const selectElem = document.getElementById("night-target-select");
-        selectElem.innerHTML = "";
 
-        let actionTitle = "";
-        if (me && me.role.includes("🐺") && me.alive) {
-            actionTitle = "🐺 คุณคือหมาป่า: เลือกเป้าหมายสังหารคืนนี้";
-            data.players.filter(p => p.alive && !p.role.includes("🐺")).forEach(p => {
-                selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-            });
-        } else if (me && me.role.includes("👁️") && me.alive) {
-            actionTitle = "👁️ คุณคือผู้หยั่งรู้: เลือกตรวจสอบผู้เล่น 1 คน";
-            data.players.filter(p => p.alive && p.id !== me.id).forEach(p => {
-                selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-            });
-        } else if (me && me.role.includes("🛡️") && me.alive) {
-            actionTitle = "🛡️ คุณคือบอดี้การ์ด: เลือกปกป้องผู้เล่น 1 คน (ห้ามซ้ำคนเดิมติดต่อกัน)";
-            data.players.filter(p => p.alive && p.id !== data.lastBodyguardTarget).forEach(p => {
-                selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-            });
-        } else {
-            actionTitle = "🌙 หลับตาลงและรอช่วงรุ่งเช้า...";
-            selectElem.innerHTML += `<option value="none">รอเวลาผ่านไป...</option>`;
+    window.copyShareLink = function() {
+        const link = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+        const tempInput = document.createElement("input");
+        document.body.appendChild(tempInput);
+        tempInput.value = link;
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+        window.showModal("สำเร็จ", "คัดลอกลิงก์เชิญเพื่อนเรียบร้อยแล้ว!");
+    }
+
+    window.addBotPlayer = async function() {
+        if(!roomData || roomData.hostId !== myUserId) return;
+        const botNames = ["แถมชัย", "สมชาย", "สมหญิง", "ก้านกล้วย", "ใบตอง", "แมนยู"];
+        const currentCount = roomData.players.length;
+        if(currentCount >= roomData.maxPlayers) return window.showModal("แจ้งเตือน", "ห้องเต็มแล้ว");
+
+        const botName = botNames[currentCount % botNames.length] + " (Bot)";
+        roomData.players.push({
+            id: 'bot_' + Math.random().toString(36).substr(2, 5),
+            name: botName,
+            role: null,
+            alive: true
+        });
+
+        await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
+    }
+
+    window.startGameOnline = async function() {
+        if(!roomData || roomData.hostId !== myUserId) return;
+        const deck = [...roleDecks[roomData.mode]];
+        for(let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
         }
-        document.getElementById("night-action-title").innerText = actionTitle;
 
-        if (isHost) {
-            document.getElementById("host-day-start-btn").classList.remove("hidden");
-            document.getElementById("night-waiting-status").classList.add("hidden");
-        } else {
-            document.getElementById("host-day-start-btn").classList.add("hidden");
-            document.getElementById("night-waiting-status").classList.remove("hidden");
+        roomData.players.forEach((p, idx) => {
+            p.role = deck[idx] || "🧑‍🌾 ชาวบ้าน (Villager)";
+        });
+
+        roomData.status = 'role_reveal';
+        await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
+    }
+
+    function updateUIBasedOnRoomState() {
+        if(!roomData) return;
+
+        document.getElementById('home-screen').classList.add('hidden');
+        document.getElementById('create-room-screen').classList.add('hidden');
+        document.getElementById('join-room-screen').classList.add('hidden');
+        document.getElementById('lobby-screen').classList.add('hidden');
+        document.getElementById('role-reveal-screen').classList.add('hidden');
+        document.getElementById('night-screen').classList.add('hidden');
+        document.getElementById('day-screen').classList.add('hidden');
+        document.getElementById('end-screen').classList.add('hidden');
+
+        if(roomData.status === 'lobby') {
+            document.getElementById('lobby-screen').classList.remove('hidden');
+            renderLobbyPlayers(roomData);
+        } else if(roomData.status === 'role_reveal') {
+            document.getElementById('role-reveal-screen').classList.remove('hidden');
+            if(roomData.hostId === myUserId) {
+                document.getElementById('host-night-start-btn').classList.remove('hidden');
+                document.getElementById('guest-night-waiting').classList.add('hidden');
+            } else {
+                document.getElementById('host-night-start-btn').classList.add('hidden');
+                document.getElementById('guest-night-waiting').classList.remove('hidden');
+            }
+        } else if(roomData.status === 'night') {
+            document.getElementById('night-screen').classList.remove('hidden');
+            setupNightScreen();
+        } else if(roomData.status === 'day') {
+            document.getElementById('day-screen').classList.remove('hidden');
+            setupDayScreen();
+        } else if(roomData.status === 'end') {
+            document.getElementById('end-screen').classList.remove('hidden');
+            setupEndScreen();
         }
     }
-    else if (data.phase === 'day') {
-        document.getElementById("day-screen").classList.remove("hidden");
-        document.getElementById("night-summary-box").innerHTML = data.lastSummary || "☀️ เริ่มต้นวันใหม่ อภิปรายหาตัวหมาป่า";
-        
-        const voteSelect = document.getElementById("day-vote-select");
-        voteSelect.innerHTML = `<option value="none">-- ไม่โหวตออกใคร (ผ่าน) --</option>`;
-        data.players.filter(p => p.alive).forEach(p => {
+
+    window.revealRole = function() {
+        const me = roomData.players.find(p => p.id === myUserId);
+        const cardBox = document.getElementById('my-card-box');
+        if(me) {
+            cardBox.innerText = me.role;
+            cardBox.style.background = '#e43f5a';
+        }
+    }
+
+    window.hideRole = function() {
+        const cardBox = document.getElementById('my-card-box');
+        cardBox.innerText = "🔒 กดค้างไว้ เพื่อดูบทบาทของคุณ";
+        cardBox.style.background = '#1e293b';
+    }
+
+    window.hostTriggerNight = async function() {
+        roomData.status = 'night';
+        roomData.nightState = { step: 1, killed: null, protected: null, seerResult: null };
+        await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
+    }
+
+    function setupNightScreen() {
+        const step = roomData.nightState.step || 1;
+        const titleElem = document.getElementById('night-title');
+        const narratorElem = document.getElementById('narrator-text');
+        const actionBox = document.getElementById('night-action-box');
+        const actionTitle = document.getElementById('night-action-title');
+        const selectElem = document.getElementById('night-target-select');
+        const submitBtn = document.getElementById('submit-night-action-btn');
+        const hostDayBtn = document.getElementById('host-day-start-btn');
+        const waitingStatus = document.getElementById('night-waiting-status');
+
+        hostDayBtn.classList.add('hidden');
+        waitingStatus.classList.add('hidden');
+
+        const me = roomData.players.find(p => p.id === myUserId);
+
+        if(step === 1) {
+            titleElem.innerText = "🌙 ค่ำคืนมาเยือน... หมาป่ากำลังออกล่า";
+            narratorElem.innerText = "หมาป่ากำลังเล็งเป้าหมายในความมืด...";
+            if(me && me.role.includes("Werewolf") && me.alive) {
+                actionBox.classList.remove('hidden');
+                actionTitle.innerText = "🐺 เลือกเหยื่อที่คุณต้องการสังหาร:";
+                selectElem.innerHTML = "";
+                roomData.players.filter(p => p.alive).forEach(p => {
+                    selectElem.innerHTML += `<option value="${p.id}">${p.name} (${p.role})</option>`;
+                });
+            } else {
+                actionBox.classList.add('hidden');
+                waitingStatus.classList.remove('hidden');
+            }
+        } else if(step === 2) {
+            titleElem.innerText = "🌙 ค่ำคืนมาเยือน... ผู้หยั่งรู้กำลังสืบหาความจริง";
+            narratorElem.innerText = "ผู้หยั่งรู้กำลังตรวจสอบบทบาท...";
+            if(me && me.role.includes("Seer") && me.alive) {
+                actionBox.classList.remove('hidden');
+                actionTitle.innerText = "👁️ เลือกผู้เล่นที่ต้องการตรวจสอบว่าเป็นหมาป่าหรือไม่:";
+                selectElem.innerHTML = "";
+                roomData.players.filter(p => p.id !== myUserId && p.alive).forEach(p => {
+                    selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                });
+            } else {
+                actionBox.classList.add('hidden');
+                waitingStatus.classList.remove('hidden');
+            }
+        } else if(step === 3) {
+            titleElem.innerText = "🌙 ค่ำคืนมาเยือน... บอดี้การ์ดกำลังปกป้อง";
+            narratorElem.innerText = "บอดี้การ์ดกำลังเลือกคุ้มกันผู้เล่น...";
+            if(me && me.role.includes("Bodyguard") && me.alive) {
+                actionBox.classList.remove('hidden');
+                actionTitle.innerText = "🛡️ เลือกผู้เล่นที่คุณต้องการปกป้อง:";
+                selectElem.innerHTML = `<option value="none">-- ไม่เลือกคุ้มกันใคร --</option>`;
+                roomData.players.filter(p => p.alive).forEach(p => {
+                    selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                });
+            } else {
+                actionBox.classList.add('hidden');
+                waitingStatus.classList.remove('hidden');
+            }
+        } else if(step === 4) {
+            titleElem.innerText = "☀️ ค่ำคืนสิ้นสุดลงแล้ว";
+            narratorElem.innerText = "รวบรวมผลการกระทำตอนกลางคืนเรียบร้อย";
+            actionBox.classList.add('hidden');
+            if(roomData.hostId === myUserId) {
+                hostDayBtn.classList.remove('hidden');
+            } else {
+                waitingStatus.classList.remove('hidden');
+            }
+        }
+    }
+
+    window.submitMyNightAction = async function() {
+        const step = roomData.nightState.step;
+        const val = document.getElementById('night-target-select').value;
+
+        if(step === 1) {
+            roomData.nightState.killed = val;
+            roomData.nightState.step = 2;
+        } else if(step === 2) {
+            const target = roomData.players.find(p => p.id === val);
+            const isWolf = target && target.role.includes("Werewolf");
+            window.showModal("ผลตรวจสอบ", `ผู้เล่น ${target.name} คือ: ${isWolf ? '🐺 หมาป่า!' : '🧑‍🌾 ชาวบ้านธรรมดา'}`);
+            roomData.nightState.step = 3;
+        } else if(step === 3) {
+            roomData.nightState.protected = val === 'none' ? null : val;
+            roomData.nightState.step = 4;
+        }
+
+        await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
+    }
+
+    window.closeSeerModal = function() {
+        window.closeModal();
+    }
+
+    window.hostTriggerDay = async function() {
+        const ns = roomData.nightState;
+        let killedMsg = "🛡️ ค่ำคืนนี้สงบสุข ไม่มีใครเสียชีวิต!";
+        if(ns.killed && ns.killed !== ns.protected) {
+            const victim = roomData.players.find(p => p.id === ns.killed);
+            if(victim) {
+                victim.alive = false;
+                killedMsg = `☠️ เมื่อคืนนี้ <b>${victim.name}</b> ถูกหมาป่าสังหารเสียชีวิต!`;
+            }
+        } else if(ns.killed && ns.killed === ns.protected) {
+            killedMsg = `🛡️ บอดี้การ์ดปกป้องเหยื่อจากการโจมตีของหมาป่าได้ทันเวลา!`;
+        }
+
+        roomData.nightSummary = killedMsg;
+        roomData.status = 'day';
+        roomData.votes = {};
+        await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
+    }
+
+    function setupDayScreen() {
+        document.getElementById('night-summary-box').innerHTML = roomData.nightSummary || "";
+        const voteSelect = document.getElementById('day-vote-select');
+        voteSelect.innerHTML = `<option value="none">-- ไม่โหวตใคร (ผ่าน) --</option>`;
+        roomData.players.filter(p => p.alive).forEach(p => {
             voteSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
         });
 
-        if (isHost) {
-            document.getElementById("host-tally-btn").classList.remove("hidden");
-            document.getElementById("guest-vote-waiting").classList.add("hidden");
+        if(roomData.hostId === myUserId) {
+            document.getElementById('host-tally-btn').classList.remove('hidden');
+            document.getElementById('guest-vote-waiting').classList.add('hidden');
         } else {
-            document.getElementById("host-tally-btn").classList.add("hidden");
-            document.getElementById("guest-vote-waiting").classList.remove("hidden");
-        }
-    }
-    else if (data.phase === 'end') {
-        document.getElementById("end-screen").classList.remove("hidden");
-        document.getElementById("winner-announcement-box").innerText = data.winnerMsg;
-        let html = "";
-        data.players.forEach(p => {
-            html += `• ${p.name}: ${p.role} (${p.alive ? '🟢 รอดชีวิต' : '🔴 เสียชีวิต'})<br>`;
-        });
-        document.getElementById("end-roles-list").innerHTML = html;
-    }
-}
-
-window.hostTriggerNight = async function() {
-    if (!roomData) return;
-    roomData.phase = 'night';
-    roomData.updatedAt = Date.now();
-    await saveRoomToCloud(currentRoomId, roomData);
-};
-
-window.submitMyNightAction = async function() {
-    const val = document.getElementById("night-target-select").value;
-    const me = roomData.players.find(p => p.id === myUserId) || roomData.players[0];
-    if (!me) return;
-
-    let actions = roomData.nightActions || {};
-
-    if (me.role.includes("🐺")) {
-        actions.kill = val;
-    } else if (me.role.includes("👁️")) {
-        const target = roomData.players.find(p => p.id === val);
-        if (target) {
-            const isWolf = target.role.includes("🐺");
-            document.getElementById("seer-result-text").innerText = `${target.name} คือ: ${isWolf ? '🐺 หมาป่า (Werewolf)' : '🧑‍🌾 ชาวบ้านทั่วไป'}`;
-            document.getElementById("seer-reveal-modal").classList.remove("hidden");
-        }
-    } else if (me.role.includes("🛡️")) {
-        actions.protect = val;
-        roomData.lastBodyguardTarget = val;
-    }
-
-    roomData.nightActions = actions;
-    roomData.updatedAt = Date.now();
-    await saveRoomToCloud(currentRoomId, roomData);
-    window.showAlert("บันทึกคำสั่งกลางคืนเรียบร้อย", "สำเร็จ");
-};
-
-window.closeSeerModal = function() {
-    document.getElementById("seer-reveal-modal").classList.add("hidden");
-};
-
-window.hostTriggerDay = async function() {
-    if (!roomData) return;
-    const killedId = roomData.nightActions?.kill;
-    const protectedId = roomData.nightActions?.protect;
-
-    let summary = "🛡️ คืนนี้ปลอดภัย ไม่มีใครเสียชีวิต";
-    if (killedId && killedId !== 'none' && killedId !== protectedId) {
-        const victim = roomData.players.find(p => p.id === killedId);
-        if (victim) {
-            victim.alive = false;
-            summary = `☠️ เมื่อคืนนี้ ${victim.name} ถูกหมาป่าสังหารเสียชีวิต!`;
+            document.getElementById('host-tally-btn').classList.add('hidden');
+            document.getElementById('guest-vote-waiting').classList.remove('hidden');
         }
     }
 
-    const wolves = roomData.players.filter(p => p.alive && p.role.includes("🐺")).length;
-    const villagers = roomData.players.filter(p => p.alive && !p.role.includes("🐺")).length;
-
-    let nextPhase = 'day';
-    let winnerMsg = '';
-
-    if (wolves === 0) {
-        nextPhase = 'end';
-        winnerMsg = "🎉 ฝ่ายชาวบ้านชนะ หมาป่าถูกกำจัดหมดแล้ว!";
-    } else if (wolves >= villagers) {
-        nextPhase = 'end';
-        winnerMsg = "🐺 ฝ่ายหมาป่าชนะ จำนวนหมาป่าเท่ากับหรือมากกว่าชาวบ้าน!";
+    window.submitDayVote = async function() {
+        const voteVal = document.getElementById('day-vote-select').value;
+        roomData.votes[myUserId] = voteVal;
+        await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
+        window.showModal("สำเร็จ", "บันทึกผลโหวตของคุณเรียบร้อยแล้ว");
     }
 
-    roomData.lastSummary = summary;
-    roomData.nightActions = {};
-    roomData.phase = nextPhase;
-    roomData.winnerMsg = winnerMsg;
-    roomData.updatedAt = Date.now();
-    await saveRoomToCloud(currentRoomId, roomData);
-};
-
-window.submitDayVote = async function() {
-    const val = document.getElementById("day-vote-select").value;
-    let votes = roomData.dayVotes || {};
-    votes[myUserId] = val;
-    roomData.dayVotes = votes;
-    roomData.updatedAt = Date.now();
-    await saveRoomToCloud(currentRoomId, roomData);
-    window.showAlert("บันทึกผลโหวตสำเร็จ", "สำเร็จ");
-};
-
-window.hostCalculateVotes = async function() {
-    if (!roomData) return;
-    let voteCounts = {};
-    Object.values(roomData.dayVotes || {}).forEach(vId => {
-        if (vId && vId !== 'none') {
-            voteCounts[vId] = (voteCounts[vId] || 0) + 1;
-        }
-    });
-
-    let highestVoted = null;
-    let maxVotes = 0;
-    for (let [id, count] of Object.entries(voteCounts)) {
-        if (count > maxVotes) {
-            maxVotes = count;
-            highestVoted = id;
-        }
-    }
-
-    let summary = '';
-    if (highestVoted && highestVoted !== 'none') {
-        const outcast = roomData.players.find(p => p.id === highestVoted);
-        if (outcast) {
-            outcast.alive = false;
-            if (outcast.role.includes("ยาจก")) {
-                roomData.phase = 'end';
-                roomData.winnerMsg = `🪵 ยาจก (${outcast.name}) เป็นฝ่ายชนะเดี่ยว! (เพราะยาจกถูกโหวตออกจากหมู่บ้านสำเร็จ)`;
-                roomData.updatedAt = Date.now();
-                await saveRoomToCloud(currentRoomId, roomData);
-                return;
+    window.hostCalculateVotes = async function() {
+        const tally = {};
+        Object.values(roomData.votes).forEach(targetId => {
+            if(targetId && targetId !== 'none') {
+                tally[targetId] = (tally[targetId] || 0) + 1;
             }
-            summary = `💥 ผลโหวตสูงสุด: ${outcast.name} ถูกโหวตออกจากหมู่บ้าน!`;
+        });
+
+        let maxVotes = 0;
+        let eliminatedId = null;
+        for(let [id, count] of Object.entries(tally)) {
+            if(count > maxVotes) {
+                maxVotes = count;
+                eliminatedId = id;
+            }
         }
-    } else {
-        summary = `⚖️ มติวันนี้: ไม่มีใครถูกโหวตออกจากหมู่บ้าน`;
+
+        if(eliminatedId) {
+            const victim = roomData.players.find(p => p.id === eliminatedId);
+            if(victim) {
+                victim.alive = false;
+                if(victim.role.includes("ยาจก")) {
+                    roomData.winner = "🪵 ฝ่ายยาจกชนะ! (ยาจกถูกโหวตออกสำเร็จ)";
+                    roomData.status = 'end';
+                    await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
+                    return;
+                }
+            }
+        }
+
+        const aliveWolves = roomData.players.filter(p => p.alive && p.role.includes("Werewolf")).length;
+        const aliveVillagers = roomData.players.filter(p => p.alive && !p.role.includes("Werewolf")).length;
+
+        if(aliveWolves === 0) {
+            roomData.winner = "🎉 ฝ่ายชาวบ้านชนะ! หมาป่าถูกกำจัดหมดแล้ว";
+            roomData.status = 'end';
+        } else if(aliveWolves >= aliveVillagers) {
+            roomData.winner = "🐺 ฝ่ายหมาป่าชนะ! จำนวนหมาป่าครอบครองหมู่บ้าน";
+            roomData.status = 'end';
+        } else {
+            roomData.status = 'night';
+            roomData.nightState = { step: 1, killed: null, protected: null, seerResult: null };
+        }
+
+        await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
     }
 
-    const wolves = roomData.players.filter(p => p.alive && p.role.includes("🐺")).length;
-    const villagers = roomData.players.filter(p => p.alive && !p.role.includes("🐺")).length;
-
-    let nextPhase = 'night';
-    let winnerMsg = '';
-    let nextNightCount = (roomData.nightCount || 1) + 1;
-
-    if (wolves === 0) {
-        nextPhase = 'end';
-        winnerMsg = "🎉 ฝ่ายชาวบ้านชนะ หมาป่าถูกกำจัดหมดแล้ว!";
-    } else if (wolves >= villagers) {
-        nextPhase = 'end';
-        winnerMsg = "🐺 ฝ่ายหมาป่าชนะ จำนวนหมาป่าเท่ากับหรือมากกว่าชาวบ้าน!";
+    function setupEndScreen() {
+        document.getElementById('winner-announcement-box').innerText = roomData.winner || "จบเกม";
+        const listDiv = document.getElementById('end-roles-list');
+        listDiv.innerHTML = "";
+        roomData.players.forEach(p => {
+            listDiv.innerHTML += `<div class="bg-slate-900 p-2 rounded flex justify-between">
+                <span><b>${p.name}</b>: ${p.role}</span>
+                <span>${p.alive ? '🟢 รอด' : '🔴 ตาย'}</span>
+            </div>`;
+        });
     }
-
-    roomData.lastSummary = summary;
-    roomData.dayVotes = {};
-    roomData.nightCount = nextNightCount;
-    roomData.phase = nextPhase;
-    roomData.winnerMsg = winnerMsg;
-    roomData.updatedAt = Date.now();
-    await saveRoomToCloud(currentRoomId, roomData);
-};
 </script>
 
 </body>
