@@ -27,7 +27,7 @@
         <h1 class="text-3xl font-extrabold text-amber-400 tracking-wide flex items-center justify-center gap-2 mt-4">
             🐺 Werewolf Online
         </h1>
-        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์ Cloud Firestore เรียลไทม์ (ระบบโหวตอิสระทุกคน)</p>
+        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์ Cloud Firestore เรียลไทม์ (ซิงก์ข้อมูลอัตโนมัติถาวร)</p>
     </div>
 
     <!-- Custom Modal -->
@@ -328,7 +328,13 @@
     let currentRoomId = null;
     let roomData = null;
     let unsubscribeRoom = null;
-    let myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
+    
+    // โหลดหรือสร้างรหัสประจำตัวผู้ใช้ (Persistent User ID) เพื่อป้องกันไอดีเปลี่ยนเมื่อรีเฟรช
+    let myUserId = localStorage.getItem('werewolf_user_id');
+    if (!myUserId) {
+        myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('werewolf_user_id', myUserId);
+    }
 
     const roleDecks = {
         mode1: [
@@ -404,6 +410,7 @@
     window.syncNameInputs = function(val) {
         document.getElementById('my-name-input').value = val;
         document.getElementById('join-name-input').value = val;
+        localStorage.setItem('werewolf_player_name', val);
     }
 
     window.backToHome = function() {
@@ -469,6 +476,14 @@
 
     window.onload = async () => {
         await initFirebase();
+        
+        // ดึงชื่อที่เคยกรอกไว้ล่าสุดจาก localStorage มาเติมอัตโนมัติ
+        const savedName = localStorage.getItem('werewolf_player_name');
+        if (savedName) {
+            document.getElementById('my-name-input').value = savedName;
+            document.getElementById('join-name-input').value = savedName;
+        }
+
         const urlParams = new URLSearchParams(window.location.search);
         const roomParam = urlParams.get('room');
         if (roomParam) {
@@ -701,7 +716,6 @@
 
     window.hostTriggerNight = async function() {
         roomData.status = 'night';
-        // เก็บบันทึกคนที่ถูกปกป้องในคืนที่แล้วไว้ใน lastProtected และรีเซ็ตการปกป้องคืนใหม่
         const previousProtected = roomData.nightState ? roomData.nightState.protected : null;
         roomData.nightState = { 
             step: 1, 
@@ -729,7 +743,6 @@
 
         const me = roomData.players.find(p => p.id === myUserId);
 
-        // ให้ Host ตรวจสอบและรันการกระทำของ Bot ในทุกๆ Step กลางคืนเสมอ
         if (roomData.hostId === myUserId) {
             setTimeout(() => {
                 handleBotNightActions(step);
@@ -779,9 +792,8 @@
                 selectElem.innerHTML = `<option value="none">-- ไม่เลือกคุ้มกันใคร --</option>`;
 
                 roomData.players.filter(p => p.alive).forEach(p => {
-                    // ป้องกันไม่ให้เลือกปกป้องคนเดิม 2 คืนติดต่อกัน
                     if (p.id === lastProtectedId) {
-                        return; // ข้ามการแสดงผลคนเดิมใน dropdown
+                        return;
                     }
                     selectElem.innerHTML += `<option value="${p.id}">${p.name}</option>`;
                 });
@@ -810,16 +822,11 @@
         const alivePlayers = roomData.players.filter(p => p.alive);
 
         if (step === 1) {
-            // เช็กหมาป่าที่ยังรอดชีวิต
             const aliveWolves = alivePlayers.filter(p => p.role.includes("Werewolf"));
-            
-            // หากหมาป่าตายหมด หรือ มีแต่บอทหมาป่า ให้ทำแอคชัน/ข้ามทันที
             if (aliveWolves.length === 0) {
-                // หมาป่าตายหมดแล้ว -> ข้ามไปขั้นตอนที่ 2
                 roomData.nightState.step = 2;
                 actionNeeded = true;
             } else if (aliveWolves.every(p => p.id.startsWith('bot_'))) {
-                // มีแต่บอทหมาป่า -> บอทสุ่มเลือกเหยื่อ
                 const targetCandidates = alivePlayers.filter(p => !p.role.includes("Werewolf"));
                 const victimPool = targetCandidates.length > 0 ? targetCandidates : alivePlayers;
                 const randomVictim = victimPool[Math.floor(Math.random() * victimPool.length)];
@@ -829,23 +836,16 @@
                 actionNeeded = true;
             }
         } else if (step === 2) {
-            // เช็กผู้หยั่งรู้ที่ยังรอดชีวิต
             const aliveSeer = alivePlayers.find(p => p.role.includes("Seer"));
-            
-            // หากผู้หยั่งรู้ไม่มีอยู่จริง หรือ เสียชีวิตแล้ว หรือ เป็นบอท -> ข้ามไปขั้นตอนที่ 3 ทันที
             if (!aliveSeer || aliveSeer.id.startsWith('bot_')) {
                 roomData.nightState.step = 3;
                 actionNeeded = true;
             }
         } else if (step === 3) {
-            // เช็กบอดี้การ์ดที่ยังรอดชีวิต
             const aliveGuard = alivePlayers.find(p => p.role.includes("Bodyguard"));
-            
-            // หากบอดี้การ์ดไม่มีอยู่จริง หรือ เสียชีวิตแล้ว หรือ เป็นบอท -> ข้ามไปขั้นตอนที่ 4 ทันที
             if (!aliveGuard || aliveGuard.id.startsWith('bot_')) {
                 if (aliveGuard && aliveGuard.id.startsWith('bot_')) {
                     const lastProtectedId = roomData.nightState ? roomData.nightState.lastProtected : null;
-                    // บอทจะกรองผู้เล่นที่ไม่ใช่คนคุ้มกันในคืนที่แล้ว
                     const validProtectCandidates = alivePlayers.filter(p => p.id !== lastProtectedId);
                     const randomProtect = validProtectCandidates.length > 0 
                         ? validProtectCandidates[Math.floor(Math.random() * validProtectCandidates.length)]
@@ -919,7 +919,6 @@
             voteSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
         });
 
-        // สุ่มโหวตอัตโนมัติให้ บอท (Bot) ทุกตัว
         if (roomData.hostId === myUserId) {
             let botVoteUpdated = false;
             alivePlayers.forEach(p => {
@@ -940,7 +939,6 @@
             }
         }
 
-        // ตรวจสอบว่าผู้เล่นปัจจุบันลงโหวตแล้วหรือยัง
         if (roomData.votes && roomData.votes[myUserId] !== undefined) {
             const myVotedTargetId = roomData.votes[myUserId];
             const targetPlayer = roomData.players.find(p => p.id === myVotedTargetId);
@@ -963,7 +961,6 @@
             voteSelect.disabled = false;
         }
 
-        // อัปเดตรายการและจำนวนผู้ลงคะแนนโหวต Real-time สำหรับทุกคนในห้อง
         const votersListDiv = document.getElementById('day-voters-status-list');
         votersListDiv.innerHTML = "";
         let votedCount = 0;
@@ -1019,9 +1016,8 @@
             if (!confirmForce) return;
         }
 
-        // เก็บคะแนนโหวตและรายชื่อคนที่โหวตให้แต่ละเป้าหมาย
-        const tally = {}; // { targetId: count }
-        const votersForTarget = {}; // { targetId: [voterName1, voterName2] }
+        const tally = {};
+        const votersForTarget = {};
 
         Object.entries(roomData.votes || {}).forEach(([voterId, targetId]) => {
             const voter = roomData.players.find(p => p.id === voterId);
@@ -1039,7 +1035,7 @@
         let isTie = false;
 
         for(let [id, count] of Object.entries(tally)) {
-            if (id === 'none') continue; // ข้ามการคำนวณผู้ถูกโหวตออกกรณีผ่าน
+            if (id === 'none') continue;
             if(count > maxVotes) {
                 maxVotes = count;
                 eliminatedId = id;
@@ -1049,12 +1045,10 @@
             }
         }
 
-        // สร้างข้อความสรุปคะแนนโหวตของแต่ละคน
         let tallyDetailsHtml = `<div class="mt-3 text-xs bg-slate-900 p-3 rounded-xl border border-slate-700 text-left space-y-1.5 shadow-inner">`;
         tallyDetailsHtml += `<div class="font-bold text-amber-300 border-b border-slate-700 pb-1.5 mb-1.5 flex justify-between items-center"><span>📊 รายละเอียดการลงคะแนนโหวต:</span><span class="text-[10px] text-slate-400">รวม ${Object.keys(roomData.votes || {}).length} เสียง</span></div>`;
 
         let hasAnyVote = false;
-        // แสดงคนที่ได้รับโหวตก่อน
         roomData.players.forEach(p => {
             const count = tally[p.id] || 0;
             if (count > 0) {
@@ -1067,7 +1061,6 @@
             }
         });
 
-        // แสดงผู้ที่เลือกงดออกเสียง (ถ้ามี)
         if (tally['none']) {
             hasAnyVote = true;
             const skipVoters = votersForTarget['none'] ? votersForTarget['none'].join(", ") : "";
@@ -1096,14 +1089,12 @@
                 }
             }
         } else {
-            // กรณีคะแนนเสียงเท่ากัน หรือไม่มีคนถูกโหวต จะไม่มีใครถูกโหวตออกตามกฎใหม่
             voteSummaryMsg = `<div class="text-amber-300 font-bold text-base mb-1">⚖️ คะแนนเสียงเท่ากันหรือไม่มีผู้ถูกโหวตสูงสุดเด็ดขาด: ไม่มีใครถูกโหวตออกในรอบนี้</div>${tallyDetailsHtml}`;
         }
 
         roomData.voteSummaryDetails = voteSummaryMsg;
 
         if (!roomData.nextPhaseTarget) {
-            // นับจำนวนหมาป่า vs ฝั่งชาวบ้านทุกบทบาทที่ไม่ใช่หมาป่า
             const aliveWolves = roomData.players.filter(p => p.alive && p.role.includes("Werewolf")).length;
             const aliveNonWolves = roomData.players.filter(p => p.alive && !p.role.includes("Werewolf")).length;
 
@@ -1118,7 +1109,6 @@
             }
         }
 
-        // เปลี่ยนสถานะห้องไปหน้า vote_summary เพื่อแสดงผลรายละเอียดให้ทุกคน
         roomData.status = 'vote_summary';
         await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
     }
@@ -1170,7 +1160,6 @@
 
         await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
 
-        // หากสลับเป็นช่วงกลางคืน ให้ Host รันแอคชันบอทคืนถัดไปทันที
         if (roomData.status === 'night') {
             setTimeout(() => {
                 handleBotNightActions(1);
@@ -1204,13 +1193,11 @@
     window.playAgainSameRoom = async function() {
         if (!roomData || roomData.hostId !== myUserId) return;
 
-        // ฟื้นคืนชีพผู้เล่นทุกคน และล้างข้อมูลบทบาทชั่วคราว
         roomData.players.forEach(p => {
             p.alive = true;
             p.role = null;
         });
 
-        // สุ่มแจกบทบาทใหม่จาก Deck
         const deck = [...roleDecks[roomData.mode]];
         for(let i = deck.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -1221,7 +1208,6 @@
             p.role = deck[idx] || "🧑‍🌾 ชาวบ้าน (Villager)";
         });
 
-        // รีเซ็ตสถานะเกมกลับไปยังหน้า role_reveal
         roomData.status = 'role_reveal';
         roomData.nightState = { step: 0, killed: null, protected: null, lastProtected: null, seerResult: null };
         roomData.votes = {};
