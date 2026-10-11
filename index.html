@@ -764,7 +764,7 @@
                 if(targets.length > 0) {
                     const chosen = targets[Math.floor(Math.random() * targets.length)];
                     const isWolf = chosen.role.includes("หมาป่า");
-                    roomData.nightState.seerResult = `ผู้เล่น ${chosen.name} คือ: ${isWolf ? '🐺 หมาป่า!' : '🧑‍🌾 ผู้บริสุทธิ์'}`;
+                    roomData.nightState.seerResult = `ผู้เล่น ${chosen.name} คือ: ${isWolf ? '🐺 หมาป่า!' : '🧑‍🌾 ชาวบ้าน / ผู้บริสุทธิ์'}`;
                 }
                 roomData.nightState.step = 3;
                 processNightStepByHost();
@@ -794,7 +794,7 @@
         } else if(step === 2 && me && me.role.includes("ผู้หยั่งรู้")) {
             const target = roomData.players.find(p => p.id === val);
             const isWolf = target && target.role.includes("หมาป่า");
-            roomData.nightState.seerResult = target ? `ผู้เล่น ${target.name} คือ: ${isWolf ? '🐺 หมาป่า!' : '🧑‍🌾 ผู้บริสุทธิ์'}` : "ตรวจสอบไม่สำเร็จ";
+            roomData.nightState.seerResult = target ? `ผู้เล่น ${target.name} คือ: ${isWolf ? '🐺 หมาป่า!' : '🧑‍🌾 ชาวบ้าน / ผู้บริสุทธิ์'}` : "ตรวจสอบไม่สำเร็จ";
             roomData.nightState.step = 3;
         } else if(step === 3 && me && me.role.includes("บอดี้การ์ด")) {
             if(val === roomData.nightState.lastProtected) {
@@ -979,6 +979,11 @@
 
     function updateUIBasedOnState() {
         if(!roomData) return;
+
+        // Automatically trigger host processing for night step sync if host
+        if(roomData.status === 'night' && roomData.hostId === myUserId) {
+            processNightStepByHost();
+        }
 
         ['home-screen', 'create-room-screen', 'join-room-screen', 'lobby-screen', 'role-reveal-screen', 'night-screen', 'day-screen', 'vote-summary-screen', 'end-screen'].forEach(id => {
             document.getElementById(id).classList.add('hidden');
