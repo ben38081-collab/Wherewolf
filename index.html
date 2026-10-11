@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Werewolf Online Game</title>
+    <title>Werewolf Online Game - Fix Connection</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -30,7 +30,7 @@
         <h1 class="text-3xl font-extrabold text-amber-400 tracking-wide flex items-center justify-center gap-2">
             🐺 Werewolf Online
         </h1>
-        <p class="text-xs text-slate-400 mt-1">เล่นเรียลไทม์ผ่านมือถือคนละเครื่อง / Fast Engine</p>
+        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์เสถียร / รองรับการแชร์ลิงก์ห้องทันที</p>
     </div>
 
     <!-- Custom Modal for Notifications -->
@@ -84,8 +84,8 @@
     <!-- Join Room Sub-screen -->
     <div id="join-room-screen" class="hidden space-y-4">
         <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
-            <label class="block text-sm font-semibold text-amber-300 mb-2">🔑 กรอกรหัสห้อง 4 หลัก:</label>
-            <input type="text" id="room-code-input" maxlength="4" placeholder="เช่น 1234" 
+            <label class="block text-sm font-semibold text-amber-300 mb-2">🔑 กรอกรหัสห้อง 4 หลัก หรือรหัสซิงค์:</label>
+            <input type="text" id="room-code-input" placeholder="เช่น 1234 หรือรหัสห้อง" 
                    class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-2xl font-mono text-amber-400 uppercase tracking-widest focus:outline-none focus:border-amber-400">
         </div>
 
@@ -100,15 +100,18 @@
     <!-- Screen 2: Waiting Room Lobby -->
     <div id="lobby-screen" class="hidden space-y-4">
         <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center space-y-2">
-            <span class="text-xs text-amber-300 font-bold uppercase tracking-wider block">รหัสห้องเล่นเกม</span>
+            <span class="text-xs text-amber-300 font-bold uppercase tracking-wider block">รหัสห้องเล่นเกมของคุณ</span>
             <span id="display-room-code" class="text-4xl font-black text-amber-400 tracking-widest font-mono">----</span>
             
-            <div class="pt-2">
+            <div class="pt-2 space-y-2">
                 <button onclick="copyShareLink()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2">
                     🔗 คัดลอกลิงก์เชิญเพื่อน (ส่งเข้าไลน์/แชท)
                 </button>
+                <button onclick="exportRoomData()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-amber-300 font-semibold rounded-xl text-xs transition">
+                    📤 สำรองข้อมูลห้อง (กรณีลิงก์เปิดไม่ติด)
+                </button>
             </div>
-            <p class="text-[11px] text-slate-400">เพื่อนเปิดลิงก์นี้จะเข้าห้องอัตโนมัติทันที</p>
+            <p class="text-[11px] text-slate-400">แชร์ลิงก์นี้ให้เพื่อนเปิด หรือให้เพื่อนพิมพ์รหัสห้อง 4 หลัก</p>
         </div>
 
         <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
@@ -234,13 +237,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'werewolf-multiplayer';
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
 
 let app = null, auth = null, db = null;
 let useLocalMode = false;
 
-const LOCAL_STORAGE_KEY = 'werewolf_active_rooms';
+const LOCAL_STORAGE_KEY = 'werewolf_active_rooms_v2';
 
 function getLocalRooms() {
     try {
@@ -264,7 +266,6 @@ if (firebaseConfig && firebaseConfig.apiKey) {
         auth = getAuth(app);
         db = getFirestore(app);
     } catch(e) {
-        console.warn("Firebase Init fallback to Local Mode:", e);
         useLocalMode = true;
     }
 } else {
@@ -320,10 +321,25 @@ async function initAuth() {
     }
 }
 
-// ตรวจสอบ URL เมื่อเปิดเว็บ ว่ามีรหัสห้องติดมาด้วยไหม (?room=XXXX)
+// ตรวจสอบ URL เมื่อเปิดเว็บ ว่ามีรหัสห้องหรือข้อมูลซิงค์ติดมาด้วยไหม
 window.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
+    const dataParam = params.get('data');
+
+    if (dataParam) {
+        try {
+            const decodedData = JSON.parse(decodeURIComponent(atob(dataParam)));
+            if (decodedData && decodedData.code) {
+                saveLocalRoom(decodedData.code, decodedData);
+                document.getElementById("room-code-input").value = decodedData.code;
+                window.showJoinRoomOptions();
+                window.showAlert("นำเข้าข้อมูลห้องสำเร็จ! กด 'เข้าห้องเกม' ได้ทันที", "สำเร็จ");
+                return;
+            }
+        } catch(err) {}
+    }
+
     if (roomParam) {
         document.getElementById("room-code-input").value = roomParam.toUpperCase();
         window.showJoinRoomOptions();
@@ -331,18 +347,26 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.copyShareLink = () => {
-    if (!currentRoomId) return;
-    const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+    if (!currentRoomId || !roomStateData) return;
+    const baseUri = window.location.origin + window.location.pathname;
+    const encodedData = btoa(encodeURIComponent(JSON.stringify(roomStateData)));
+    const shareUrl = `${baseUri}?room=${currentRoomId}&data=${encodedData}`;
     
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(shareUrl).then(() => {
-            window.showAlert("คัดลอกลิงก์เชิญสำเร็จ! ส่งลิงก์นี้ให้เพื่อนเปิดในเบราว์เซอร์หรือเครื่องอื่นได้เลยครับ", "คัดลอกแล้ว");
+            window.showAlert("คัดลอกลิงก์ซิงค์สมบูรณ์แบบสำเร็จ! ส่งให้เพื่อนเปิดในไลน์หรือแชท เพื่อนจะเข้าห้องได้ทันทีแน่นอนครับ", "คัดลอกสำเร็จ");
         }).catch(() => {
             fallbackCopy(shareUrl);
         });
     } else {
         fallbackCopy(shareUrl);
     }
+};
+
+window.exportRoomData = () => {
+    if (!roomStateData) return;
+    const jsonStr = JSON.stringify(roomStateData);
+    prompt("คัดลอกรหัสข้อมูลห้องนี้ส่งให้เพื่อนในแชท:", jsonStr);
 };
 
 function fallbackCopy(text) {
@@ -352,9 +376,9 @@ function fallbackCopy(text) {
     textArea.select();
     try {
         document.execCommand('copy');
-        window.showAlert("คัดลอกลิงก์เชิญสำเร็จ!", "คัดลอกแล้ว");
+        window.showAlert("คัดลอกลิงก์สำเร็จ!", "คัดลอกแล้ว");
     } catch (err) {
-        window.showAlert("ไม่สามารถคัดลอกอัตโนมัติได้ ลิงก์ห้องของคุณคือ: " + text);
+        window.showAlert("ลิงก์ห้องของคุณ: " + text);
     }
     document.body.removeChild(textArea);
 };
@@ -455,20 +479,31 @@ window.createRoom = async () => {
 
 window.joinRoom = async () => {
     const name = document.getElementById("my-name-input").value.trim() || "ผู้เล่นใหม่";
-    const code = document.getElementById("room-code-input").value.trim().toUpperCase();
-    if (!code) {
-        window.showAlert("กรุณากรอกรหัสห้อง 4 หลักก่อนครับ");
+    const rawInput = document.getElementById("room-code-input").value.trim();
+    
+    if (!rawInput) {
+        window.showAlert("กรุณากรอกรหัสห้อง 4 หลักหรือวางข้อมูลห้องก่อนครับ");
         return;
     }
 
     try {
         await initAuth();
         const userId = currentUser.uid;
-        currentRoomId = code;
 
         let data = null;
 
-        if (!useLocalMode && db) {
+        // ตรวจสอบว่าผู้ใช้กรอกเป็น JSON ยาวๆ หรือรหัสห้อง 4 หลัก
+        if (rawInput.startsWith("{")) {
+            try {
+                data = JSON.parse(rawInput);
+                currentRoomId = data.code;
+                saveLocalRoom(currentRoomId, data);
+            } catch(e) {}
+        } else {
+            currentRoomId = rawInput.toUpperCase();
+        }
+
+        if (!data && !useLocalMode && db) {
             try {
                 const roomRef = doc(db, 'werewolf_rooms', currentRoomId);
                 const snap = await getDoc(roomRef);
@@ -487,14 +522,14 @@ window.joinRoom = async () => {
         }
 
         if (!data) {
-            window.showAlert("ไม่พบห้องรหัสนี้! หากเพื่อนสร้างห้องผ่านอุปกรณ์อื่น แนะนำให้ใช้ปุ่ม 'คัดลอกลิงก์เชิญเพื่อน' ส่งให้เพื่อนเปิด จะเชื่อมต่อได้ทันทีครับ", "ไม่พบห้อง");
+            window.showAlert("ไม่พบข้อมูลห้องนี้! แนะนำให้หัวหน้าห้องกดปุ่ม 'สำรองข้อมูลห้อง' แล้วส่งข้อความยาวให้คุณนำมาวาง หรือแชร์ลิงก์ซิงค์ใหม่ครับ", "ไม่พบห้อง");
             return;
         }
 
         const targetCount = roleDecks[data.mode].length;
 
         if (data.players.length >= targetCount && !data.players.some(p => p.id === userId)) {
-            window.showAlert("ห้องนี้ผู้เล่นเต็มแล้วครับ");
+            window.showAlert("ห้องนี้ผู้เล่นเต็มจำนวนแล้วครับ");
             return;
         }
 
@@ -582,7 +617,7 @@ window.addBotPlayer = async () => {
     const data = roomStateData;
     const targetCount = roleDecks[data.mode].length;
     if (data.players.length >= targetCount) {
-        window.showAlert("ผู้เล่นครบจำนวนแล้ว ไม่ต้องเพิ่มบอทครับ");
+        window.showAlert("ผู้เล่นครบจำนวนแล้ว");
         return;
     }
 
@@ -659,7 +694,7 @@ function renderRoleRevealPhase(data) {
         let extraText = "";
         if (myPlayerData.role.includes("🐺")) {
             const wolfMates = data.players.filter(p => p.role.includes("🐺") && p.id !== myPlayerData.id).map(p => p.name);
-            extraText = wolfMates.length > 0 ? `👥 เพื่อนร่วมทีมหมาป่าของคุณคือ: ${wolfMates.join(', ')}` : `🐺 คุณเป็นหมาป่าโดดเดี่ยวในตานี้`;
+            extraText = wolfMates.length > 0 ? `👥 เพื่อนร่วมทีมหมาป่าของคุณคือ: ${wolfMates.join(', ')}` : `🐺 คุณเป็นหมาป่าโดดเดี่ยว`;
         } else if (myPlayerData.role.includes("👁️")) {
             extraText = `👁️ หน้าที่ของคุณคือตรวจสอบผู้เล่นอื่นตอนกลางคืน`;
         } else if (myPlayerData.role.includes("🛡️")) {
