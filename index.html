@@ -375,16 +375,30 @@ window.createRoom = async function() {
         winnerMsg: ''
     };
 
+    let timeoutTriggered = false;
+    const timeoutId = setTimeout(() => {
+        timeoutTriggered = true;
+        btn.disabled = false;
+        btn.innerText = "🎲 สร้างห้อง Cloud ออนไลน์";
+        window.showAlert("การเชื่อมต่อฐานข้อมูลใช้เวลานานเกินไป กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่อีกครั้ง");
+    }, 8000);
+
     try {
         await setDoc(getRoomRef(roomId), initialRoomData);
+        if (timeoutTriggered) return;
+        clearTimeout(timeoutId);
         listenToRoom(roomId);
         enterLobbyScreen(roomId);
     } catch (err) {
+        if (timeoutTriggered) return;
+        clearTimeout(timeoutId);
         console.error("Create Room Error:", err);
-        window.showAlert("สร้างห้องไม่สำเร็จ: " + err.message);
+        window.showAlert("สร้างห้องไม่สำเร็จ: " + (err.message || err));
     } finally {
-        btn.disabled = false;
-        btn.innerText = "🎲 สร้างห้อง Cloud ออนไลน์";
+        if (!timeoutTriggered) {
+            btn.disabled = false;
+            btn.innerText = "🎲 สร้างห้อง Cloud ออนไลน์";
+        }
     }
 };
 
@@ -405,9 +419,20 @@ window.joinRoom = async function() {
     btn.disabled = true;
     btn.innerText = "⏳ กำลังค้นหาห้องในระบบ Cloud...";
 
+    let timeoutTriggered = false;
+    const timeoutId = setTimeout(() => {
+        timeoutTriggered = true;
+        btn.disabled = false;
+        btn.innerText = "🚀 เข้าห้องเกม";
+        window.showAlert("การเชื่อมต่อฐานข้อมูลใช้เวลานานเกินไป กรุณาตรวจสอบรหัสห้องหรืออินเทอร์เน็ต");
+    }, 8000);
+
     try {
         const roomSnap = await getDoc(getRoomRef(codeInput));
+        if (timeoutTriggered) return;
+        
         if (!roomSnap.exists()) {
+            clearTimeout(timeoutId);
             window.showAlert("ไม่พบห้องที่มีรหัสนี้ในระบบ กรุณาตรวจสอบรหัสห้องอีกครั้ง");
             btn.disabled = false;
             btn.innerText = "🚀 เข้าห้องเกม";
@@ -421,6 +446,7 @@ window.joinRoom = async function() {
         if (!existing) {
             const maxLimit = roleDecks[rData.mode].length;
             if (rData.players.length >= maxLimit) {
+                clearTimeout(timeoutId);
                 window.showAlert("ห้องนี้เต็มจำนวนผู้เล่นแล้วครับ");
                 btn.disabled = false;
                 btn.innerText = "🚀 เข้าห้องเกม";
@@ -436,14 +462,19 @@ window.joinRoom = async function() {
             await updateDoc(getRoomRef(currentRoomId), { players: rData.players });
         }
 
+        clearTimeout(timeoutId);
         listenToRoom(currentRoomId);
         enterLobbyScreen(currentRoomId);
     } catch (err) {
+        if (timeoutTriggered) return;
+        clearTimeout(timeoutId);
         console.error("Join Room Error:", err);
-        window.showAlert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
+        window.showAlert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + (err.message || err));
     } finally {
-        btn.disabled = false;
-        btn.innerText = "🚀 เข้าห้องเกม";
+        if (!timeoutTriggered) {
+            btn.disabled = false;
+            btn.innerText = "🚀 เข้าห้องเกม";
+        }
     }
 };
 
