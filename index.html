@@ -553,6 +553,7 @@
             }],
             nightState: { step: 0, killed: null, protected: null, lastProtected: null, seerResult: null },
             votes: {},
+            voteSummaryMsg: "",
             winner: null
         };
 
@@ -627,7 +628,6 @@
         });
     }
 
-    // ฟังก์ชันรีเฟรชด่วน (Manual Refresh / Force Sync)
     window.manualRefreshRoom = async function() {
         if (!currentRoomId || !db) {
             window.showModal("แจ้งเตือน", "คุณยังไม่ได้อยู่ในห้องเกม");
@@ -694,6 +694,7 @@
         roomData.status = 'role_reveal';
         roomData.nightState = { step: 1, killed: null, protected: null, lastProtected: null, seerResult: null };
         roomData.votes = {};
+        roomData.voteSummaryMsg = "";
 
         await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
     }
@@ -739,7 +740,6 @@
             activePlayer = roomData.players.find(p => p.role.includes("บอดี้การ์ด"));
         }
 
-        // หากบทบาทนั้นไม่มีชีวิตอยู่ ให้ข้ามสเตป
         if(!activePlayer || !activePlayer.alive) {
             if(step === 1) roomData.nightState.killed = null;
             else if(step === 2) roomData.nightState.seerResult = null;
@@ -749,7 +749,6 @@
             return;
         }
 
-        // หากผู้ถือบทบาทเป็นบอท ให้บอทตัดสินใจอัตโนมัติทันที
         if(activePlayer.isBot) {
             if(step === 1) {
                 const targets = roomData.players.filter(p => p.alive && !p.role.includes("หมาป่า"));
@@ -789,7 +788,10 @@
         const me = roomData.players.find(p => p.id === myUserId);
 
         if(step === 1 && me && me.role.includes("หมาป่า")) {
-            roomData.nightState.killed = val;
+            // กรณีหมาป่า 2 คน ให้ยึดเป้าหมายแรกที่เลือกฆ่า
+            if(!roomData.nightState.killed) {
+                roomData.nightState.killed = val;
+            }
             roomData.nightState.step = 2;
         } else if(step === 2 && me && me.role.includes("ผู้หยั่งรู้")) {
             const target = roomData.players.find(p => p.id === val);
@@ -980,7 +982,6 @@
     function updateUIBasedOnState() {
         if(!roomData) return;
 
-        // Automatically trigger host processing for night step sync if host
         if(roomData.status === 'night' && roomData.hostId === myUserId) {
             processNightStepByHost();
         }
