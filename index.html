@@ -497,10 +497,17 @@
             if(data.players.length >= data.maxPlayers) {
                 return window.showModal("แจ้งเตือน", "ห้องนี้เต็มแล้ว");
             }
-            if(!data.players.some(p => p.id === myUserId)) {
+
+            // ตรวจสอบว่าผู้เล่นนี้มีอยู่ในห้องแล้วหรือยัง ถ้ายังให้ทำการอัปเดตข้อมูลขึ้น Cloud ทันที
+            const existingPlayerIndex = data.players.findIndex(p => p.id === myUserId);
+            if (existingPlayerIndex !== -1) {
+                data.players[existingPlayerIndex].name = name; // อัปเดตชื่อใหม่กรณีชื่อเปลี่ยน
+            } else {
                 data.players.push({ id: myUserId, name: name, role: null, alive: true });
-                await setDoc(roomRef, data);
             }
+
+            // บันทึกข้อมูลอัปเดตรายชื่อผู้เล่นไปยัง Firestore Realtime
+            await setDoc(roomRef, data);
             listenToRoom(code);
         } catch(err) {
             window.showModal("ข้อผิดพลาด", err.message);
@@ -511,10 +518,13 @@
         if(!db) return;
         if(unsubscribeRoom) unsubscribeRoom();
 
+        // ฟังการเปลี่ยนแปลงข้อมูลบน Cloud แบบ Real-time
         unsubscribeRoom = onSnapshot(doc(db, "werewolf_rooms", roomCode), (docSnap) => {
             if(!docSnap.exists()) return;
             roomData = docSnap.data();
             updateUIBasedOnRoomState();
+        }, (error) => {
+            console.error("Firestore Listen Error: ", error);
         });
     }
 
