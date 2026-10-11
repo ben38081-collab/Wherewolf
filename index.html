@@ -865,7 +865,8 @@
         if (roomData.hostId === myUserId) {
             let botVoteUpdated = false;
             alivePlayers.forEach(p => {
-                if (p.id.startsWith('bot_') && !roomData.votes[p.id]) {
+                if (p.id.startsWith('bot_') && (!roomData.votes || !roomData.votes[p.id])) {
+                    if (!roomData.votes) roomData.votes = {};
                     const candidates = alivePlayers.filter(target => target.id !== p.id);
                     if (candidates.length > 0) {
                         const randomTarget = candidates[Math.floor(Math.random() * candidates.length)];
@@ -882,7 +883,7 @@
         }
 
         // ตรวจสอบว่าผู้เล่นปัจจุบันลงโหวตแล้วหรือยัง
-        if (roomData.votes && roomData.votes[myUserId]) {
+        if (roomData.votes && roomData.votes[myUserId] !== undefined) {
             const myVotedTargetId = roomData.votes[myUserId];
             const targetPlayer = roomData.players.find(p => p.id === myVotedTargetId);
             const targetName = myVotedTargetId === 'none' ? 'ไม่โหวตใคร (ผ่าน)' : (targetPlayer ? targetPlayer.name : 'ผู้เล่นอื่น');
@@ -904,7 +905,7 @@
             voteSelect.disabled = false;
         }
 
-        // อัปเดตรายการและจำนวนผู้ลงคะแนนโหวต Real-time
+        // อัปเดตรายการและจำนวนผู้ลงคะแนนโหวต Real-time สำหรับทุกคนในห้อง
         const votersListDiv = document.getElementById('day-voters-status-list');
         votersListDiv.innerHTML = "";
         let votedCount = 0;
