@@ -75,7 +75,7 @@
             </select>
         </div>
 
-        <button onclick="createRoom()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl shadow-lg transition">
+        <button id="btn-create-room" onclick="createRoom()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl shadow-lg transition">
             🎲 สร้างห้อง Cloud ออนไลน์
         </button>
         <button onclick="backToHome()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium rounded-xl text-sm">
@@ -250,9 +250,14 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
     appId: "1:1234567890:web:abcdef123456"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+let db, auth;
+try {
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+} catch (e) {
+    console.error("Firebase Init Error:", e);
+}
 
 let myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
 let currentRoomId = null;
@@ -267,14 +272,17 @@ const roleDecks = {
 
 async function initAuth() {
     try {
+        if (!auth) return;
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
             await signInWithCustomToken(auth, __initial_auth_token);
         } else {
             await signInAnonymously(auth);
         }
-        myUserId = auth.currentUser?.uid || myUserId;
+        if (auth.currentUser) {
+            myUserId = auth.currentUser.uid;
+        }
     } catch (e) {
-        console.warn("Auth fallback mode active:", e);
+        console.warn("Auth warning:", e);
     }
 }
 initAuth();
@@ -303,8 +311,9 @@ function getPlayerName() {
 }
 
 window.showCreateRoomOptions = function() {
-    if (!getPlayerName()) {
-        showAlert("กรุณากรอกชื่อผู้เล่นของคุณก่อนสร้างห้องครับ");
+    const name = getPlayerName();
+    if (!name) {
+        window.showAlert("กรุณากรอกชื่อผู้เล่นของคุณก่อนสร้างห้องครับ");
         return;
     }
     document.getElementById("home-screen").classList.add("hidden");
@@ -312,8 +321,9 @@ window.showCreateRoomOptions = function() {
 };
 
 window.showJoinRoomOptions = function() {
-    if (!getPlayerName()) {
-        showAlert("กรุณากรอกชื่อของคุณก่อนเข้าร่วมห้องครับ");
+    const name = getPlayerName();
+    if (!name) {
+        window.showAlert("กรุณากรอกชื่อของคุณก่อนเข้าร่วมห้องครับ");
         return;
     }
     document.getElementById("home-screen").classList.add("hidden");
@@ -335,9 +345,13 @@ window.createRoom = async function() {
     const name = getPlayerName();
     const mode = document.getElementById("game-mode-select").value;
     if (!name) {
-        showAlert("กรุณากรอกชื่อก่อนสร้างห้อง");
+        window.showAlert("กรุณากรอกชื่อก่อนสร้างห้อง");
         return;
     }
+
+    const btn = document.getElementById("btn-create-room");
+    btn.disabled = true;
+    btn.innerText = "⏳ กำลังสร้างห้อง Cloud...";
 
     const roomId = Math.floor(1000 + Math.random() * 9000).toString();
     currentRoomId = roomId;
@@ -366,7 +380,11 @@ window.createRoom = async function() {
         listenToRoom(roomId);
         enterLobbyScreen(roomId);
     } catch (err) {
-        showAlert("สร้างห้องไม่สำเร็จ กรุณาลองใหม่อีกครั้ง: " + err.message);
+        console.error("Create Room Error:", err);
+        window.showAlert("สร้างห้องไม่สำเร็จ: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "🎲 สร้างห้อง Cloud ออนไลน์";
     }
 };
 
@@ -375,11 +393,11 @@ window.joinRoom = async function() {
     const codeInput = document.getElementById("room-code-input").value.trim().toUpperCase();
 
     if (!name) {
-        showAlert("กรุณากรอกชื่อของคุณก่อนเข้าห้องครับ");
+        window.showAlert("กรุณากรอกชื่อของคุณก่อนเข้าห้องครับ");
         return;
     }
     if (!codeInput || codeInput.length !== 4) {
-        showAlert("กรุณากรอกรหัสห้อง 4 หลักให้ถูกต้อง");
+        window.showAlert("กรุณากรอกรหัสห้อง 4 หลักให้ถูกต้อง");
         return;
     }
 
@@ -390,7 +408,7 @@ window.joinRoom = async function() {
     try {
         const roomSnap = await getDoc(getRoomRef(codeInput));
         if (!roomSnap.exists()) {
-            showAlert("ไม่พบห้องที่มีรหัสนี้ในระบบ กรุณาตรวจสอบรหัสห้องอีกครั้ง");
+            window.showAlert("ไม่พบห้องที่มีรหัสนี้ในระบบ กรุณาตรวจสอบรหัสห้องอีกครั้ง");
             btn.disabled = false;
             btn.innerText = "🚀 เข้าห้องเกม";
             return;
@@ -403,7 +421,7 @@ window.joinRoom = async function() {
         if (!existing) {
             const maxLimit = roleDecks[rData.mode].length;
             if (rData.players.length >= maxLimit) {
-                showAlert("ห้องนี้เต็มจำนวนผู้เล่นแล้วครับ");
+                window.showAlert("ห้องนี้เต็มจำนวนผู้เล่นแล้วครับ");
                 btn.disabled = false;
                 btn.innerText = "🚀 เข้าห้องเกม";
                 return;
@@ -421,7 +439,8 @@ window.joinRoom = async function() {
         listenToRoom(currentRoomId);
         enterLobbyScreen(currentRoomId);
     } catch (err) {
-        showAlert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
+        console.error("Join Room Error:", err);
+        window.showAlert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + err.message);
     } finally {
         btn.disabled = false;
         btn.innerText = "🚀 เข้าห้องเกม";
@@ -436,7 +455,7 @@ function listenToRoom(roomId) {
             roomData = snapshot.data();
             updateUIBasedOnPhase(roomData);
         } else {
-            showAlert("ห้องนี้ถูกปิดแล้ว");
+            window.showAlert("ห้องนี้ถูกปิดแล้ว");
             backToHome();
         }
     }, (error) => {
@@ -455,7 +474,7 @@ function enterLobbyScreen(roomId) {
 window.copyShareLink = function() {
     const link = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
     navigator.clipboard.writeText(link).then(() => {
-        showAlert("คัดลอกลิงก์เชิญเรียบร้อยแล้ว!", "สำเร็จ");
+        window.showAlert("คัดลอกลิงก์เชิญเรียบร้อยแล้ว!", "สำเร็จ");
     }).catch(() => {
         const tempInput = document.createElement("input");
         tempInput.value = link;
@@ -463,7 +482,7 @@ window.copyShareLink = function() {
         tempInput.select();
         document.execCommand("copy");
         document.body.removeChild(tempInput);
-        showAlert("คัดลอกลิงก์เชิญสำเร็จแล้ว!", "สำเร็จ");
+        window.showAlert("คัดลอกลิงก์เชิญสำเร็จแล้ว!", "สำเร็จ");
     });
 };
 
@@ -471,7 +490,7 @@ window.addBotPlayer = async function() {
     if (!roomData) return;
     const maxLimit = roleDecks[roomData.mode].length;
     if (roomData.players.length >= maxLimit) {
-        showAlert("ห้องเต็มแล้วครับ");
+        window.showAlert("ห้องเต็มแล้วครับ");
         return;
     }
     const botId = 'bot_' + Math.random().toString(36).substr(2, 5);
@@ -650,7 +669,7 @@ window.submitMyNightAction = async function() {
     }
 
     await updateDoc(getRoomRef(currentRoomId), { nightActions: actions });
-    showAlert("บันทึกคำสั่งกลางคืนเรียบร้อย", "สำเร็จ");
+    window.showAlert("บันทึกคำสั่งกลางคืนเรียบร้อย", "สำเร็จ");
 };
 
 window.closeSeerModal = function() {
@@ -699,7 +718,7 @@ window.submitDayVote = async function() {
     let votes = roomData.dayVotes || {};
     votes[myUserId] = val;
     await updateDoc(getRoomRef(currentRoomId), { dayVotes: votes });
-    showAlert("บันทึกผลโหวตสำเร็จ", "สำเร็จ");
+    window.showAlert("บันทึกผลโหวตสำเร็จ", "สำเร็จ");
 };
 
 window.hostCalculateVotes = async function() {
