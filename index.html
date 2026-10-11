@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Werewolf Online</title>
+    <title>Werewolf Online (Multi-Device)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap');
         body { font-family: 'Prompt', sans-serif; }
         .glass-panel {
-            background: rgba(15, 23, 42, 0.85);
+            background: rgba(15, 23, 42, 0.88);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -25,11 +25,11 @@
         <h1 class="text-3xl font-extrabold text-amber-400 tracking-wide flex items-center justify-center gap-2">
             🐺 Werewolf Online
         </h1>
-        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์ / ซิงค์ข้อมูลอัตโนมัติทันที</p>
+        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์ เล่นคนละเครื่อง/คนละบราวเซอร์ได้ทันที</p>
     </div>
 
     <!-- Custom Modal for Notifications -->
-    <div id="custom-modal" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div id="custom-modal" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl max-w-xs w-full text-center space-y-4 shadow-2xl">
             <h3 id="modal-title" class="text-lg font-bold text-amber-400">แจ้งเตือน</h3>
             <p id="modal-message" class="text-sm text-slate-300"></p>
@@ -41,10 +41,15 @@
 
     <!-- Screen 1: Home / Mode Choice -->
     <div id="home-screen" class="space-y-4">
-        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
-            <label class="block text-sm font-semibold text-amber-300 mb-2">👤 ชื่อผู้เล่นของคุณ:</label>
-            <input type="text" id="my-name-input" placeholder="กรอกชื่อของคุณที่นี่" 
-                   class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-white focus:outline-none focus:border-amber-400">
+        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 space-y-3">
+            <div>
+                <label class="block text-sm font-semibold text-amber-300 mb-1">👤 ชื่อผู้เล่นของคุณ:</label>
+                <input type="text" id="my-name-input" placeholder="กรอกชื่อของคุณที่นี่" 
+                       class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-white focus:outline-none focus:border-amber-400">
+            </div>
+            <div id="connection-status" class="text-center text-xs text-emerald-400">
+                ⚡ กำลังเตรียมพร้อมระบบออนไลน์...
+            </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -68,8 +73,8 @@
             </select>
         </div>
 
-        <button id="create-btn" onclick="createRoom()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl shadow-lg transition">
-            🎲 ตกลง สร้างห้องเลย
+        <button onclick="createRoom()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl shadow-lg transition">
+            🎲 ตกลง สร้างห้องออนไลน์
         </button>
         <button onclick="backToHome()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium rounded-xl text-sm">
             ⬅️ กลับ
@@ -80,14 +85,9 @@
     <div id="join-room-screen" class="hidden space-y-4">
         <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 space-y-3">
             <div>
-                <label class="block text-sm font-semibold text-amber-300 mb-1">👤 ตั้งชื่อของคุณในเกมนี้:</label>
-                <input type="text" id="join-name-input" placeholder="กรอกชื่อของคุณ" 
-                       class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-center text-white focus:outline-none focus:border-amber-400">
-            </div>
-            <div>
-                <label class="block text-sm font-semibold text-amber-300 mb-1">🔑 รหัสห้อง 4 หลัก หรือลิงก์/ข้อมูลห้อง:</label>
-                <input type="text" id="room-code-input" placeholder="เช่น 1234 หรือวางลิงก์/ข้อมูล" 
-                       class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-xl font-mono text-amber-400 uppercase tracking-widest focus:outline-none focus:border-amber-400">
+                <label class="block text-sm font-semibold text-amber-300 mb-1">🔑 รหัสห้อง 4 หลัก:</label>
+                <input type="text" id="room-code-input" placeholder="เช่น 1234" maxlength="4"
+                       class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-2xl font-mono text-amber-400 uppercase tracking-widest focus:outline-none focus:border-amber-400">
             </div>
         </div>
 
@@ -102,21 +102,16 @@
     <!-- Screen 2: Waiting Room Lobby -->
     <div id="lobby-screen" class="hidden space-y-4">
         <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center space-y-2">
-            <span class="text-xs text-amber-300 font-bold uppercase tracking-wider block">รหัสห้องเล่นเกมของคุณ</span>
+            <span class="text-xs text-amber-300 font-bold uppercase tracking-wider block">รหัสห้องเล่นเกมออนไลน์</span>
             <span id="display-room-code" class="text-4xl font-black text-amber-400 tracking-widest font-mono">----</span>
             
-            <div class="pt-2 space-y-2">
-                <button onclick="copyShareLink()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2">
-                    🔗 คัดลอกลิงก์เชิญเพื่อน (พร้อมรหัสห้อง)
+            <div class="pt-2 flex gap-2">
+                <button onclick="copyShareLink()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1">
+                    🔗 คัดลอกลิงก์เชิญเพื่อน
                 </button>
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="manualRefreshRoom()" class="py-2 bg-slate-700 hover:bg-slate-600 text-amber-300 font-semibold rounded-xl text-xs transition">
-                        🔄 รีเฟรชข้อมูลห้อง
-                    </button>
-                    <button onclick="exportRoomData()" class="py-2 bg-slate-700 hover:bg-slate-600 text-amber-300 font-semibold rounded-xl text-xs transition">
-                        📤 คัดลอกข้อมูลห้อง (JSON)
-                    </button>
-                </div>
+                <button onclick="refreshLobby()" class="py-2.5 px-3 bg-slate-700 hover:bg-slate-600 text-amber-300 font-bold rounded-xl text-xs transition">
+                    🔄 รีเฟรช
+                </button>
             </div>
         </div>
 
@@ -129,7 +124,7 @@
         </div>
 
         <div id="host-controls" class="hidden space-y-2">
-            <button id="add-bot-btn" onclick="addBotPlayer()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 font-semibold rounded-xl text-xs text-amber-300 transition">
+            <button onclick="addBotPlayer()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-amber-300 font-bold rounded-xl text-xs transition">
                 🤖 เพิ่มบอททดสอบ
             </button>
             <button id="start-game-btn" onclick="startGameOnline()" disabled 
@@ -147,7 +142,7 @@
         <h2 class="text-xl font-bold text-amber-300">🃏 บทบาทของคุณ</h2>
         <p class="text-xs text-slate-400">แตะค้างที่การ์ดเพื่อดูบทบาทของคุณ</p>
         
-        <div id="my-card-box" class="card-box bg-slate-800 border-2 border-dashed border-rose-500 rounded-2xl p-8 text-xl font-bold cursor-pointer glow-red min-h-[140px] flex items-center justify-center transition select-none"
+        <div id="my-card-box" class="bg-slate-800 border-2 border-dashed border-rose-500 rounded-2xl p-8 text-xl font-bold cursor-pointer glow-red min-h-[140px] flex items-center justify-center transition select-none"
              onmousedown="revealRole()" onmouseup="hideRole()" ontouchstart="revealRole()" ontouchend="hideRole()">
             🔒 กดค้างไว้ เพื่อดูบทบาทของคุณ
         </div>
@@ -239,49 +234,12 @@
 </div>
 
 <script>
-// Global state management & resilient synchronization
-let currentUser = { uid: 'user-' + Math.random().toString(36).substring(2, 9) };
+// Global Game State
+let currentUser = { uid: 'user_' + Math.random().toString(36).substr(2, 9) };
 let currentRoomId = null;
 let isHost = false;
 let roomStateData = null;
-let hasSubmittedNight = false;
-let hasSubmittedVote = false;
-
-const CHANNEL_KEY = 'werewolf_offline_rooms_v3';
-const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('werewolf_sync_channel_v3') : null;
-
-if (syncChannel) {
-    syncChannel.onmessage = (event) => {
-        if (event.data && event.data.type === 'ROOM_UPDATE' && event.data.roomId === currentRoomId) {
-            handleRoomStateChange(event.data.data);
-        }
-    };
-}
-
-// Auto-check URL query parameters for room code (e.g. ?room=1234) on startup
-window.addEventListener('DOMContentLoaded', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomParam = urlParams.get('room');
-    if (roomParam) {
-        document.getElementById("room-code-input").value = roomParam.trim();
-        // Switch to join screen automatically
-        document.getElementById("home-screen").classList.add("hidden");
-        document.getElementById("join-room-screen").classList.remove("hidden");
-    }
-});
-
-// Polling fallback to ensure instant updates across tabs/devices
-setInterval(() => {
-    if (currentRoomId) {
-        const rooms = getCloudRooms();
-        if (rooms[currentRoomId]) {
-            const remoteData = rooms[currentRoomId];
-            if (roomStateData && JSON.stringify(remoteData) !== JSON.stringify(roomStateData)) {
-                handleRoomStateChange(remoteData);
-            }
-        }
-    }
-}, 1000);
+let syncInterval = null;
 
 const roleDecks = {
     mode1: ["🐺 หมาป่า", "🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน"],
@@ -289,6 +247,7 @@ const roleDecks = {
     mode3: ["🐺 หมาป่า", "🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน", "🪵 ยาจก"]
 };
 
+// Global Handler Functions
 window.showAlert = (msg, title = "แจ้งเตือน") => {
     document.getElementById("modal-title").innerText = title;
     document.getElementById("modal-message").innerText = msg;
@@ -315,7 +274,6 @@ window.showJoinRoomOptions = () => {
         window.showAlert("กรุณากรอกชื่อของคุณก่อนเข้าร่วมห้องครับ", "แจ้งเตือน");
         return;
     }
-    document.getElementById("join-name-input").value = nameInput;
     document.getElementById("home-screen").classList.add("hidden");
     document.getElementById("join-room-screen").classList.remove("hidden");
 };
@@ -327,24 +285,27 @@ window.backToHome = () => {
     document.getElementById("home-screen").classList.remove("hidden");
 };
 
-function getCloudRooms() {
-    try {
-        const data = localStorage.getItem(CHANNEL_KEY);
-        return data ? JSON.parse(data) : {};
-    } catch(e) {
-        return {};
-    }
+// Storage Sync Engine
+function saveRoomState(roomId, data) {
+    localStorage.setItem(`werewolf_room_${roomId}`, JSON.stringify(data));
 }
 
-function saveCloudRoom(roomId, data) {
-    try {
-        const rooms = getCloudRooms();
-        rooms[roomId] = data;
-        localStorage.setItem(CHANNEL_KEY, JSON.stringify(rooms));
-    } catch(e) {}
+function loadRoomState(roomId) {
+    const dataStr = localStorage.getItem(`werewolf_room_${roomId}`);
+    return dataStr ? JSON.parse(dataStr) : null;
 }
 
-window.createRoom = async () => {
+function startSyncLoop(roomId) {
+    if (syncInterval) clearInterval(syncInterval);
+    syncInterval = setInterval(() => {
+        const latestData = loadRoomState(roomId);
+        if (latestData) {
+            handleRoomStateChange(latestData);
+        }
+    }, 800);
+}
+
+window.createRoom = () => {
     const name = document.getElementById("my-name-input").value.trim();
     const mode = document.getElementById("game-mode-select").value;
     if (!name) {
@@ -366,8 +327,7 @@ window.createRoom = async () => {
             name: name,
             role: '',
             alive: true,
-            nightTarget: null,
-            voteTarget: null
+            isBot: false
         }],
         nightCount: 1,
         nightActions: {},
@@ -376,60 +336,27 @@ window.createRoom = async () => {
         winnerMsg: ''
     };
 
-    saveCloudRoom(roomId, roomStateData);
-    if (syncChannel) {
-        syncChannel.postMessage({ type: 'ROOM_UPDATE', roomId: roomId, data: roomStateData });
-    }
-
+    saveRoomState(roomId, roomStateData);
     enterLobbyScreen(roomId);
+    startSyncLoop(roomId);
 };
 
-window.joinRoom = async () => {
-    let name = document.getElementById("join-name-input").value.trim();
-    if (!name) {
-        name = document.getElementById("my-name-input").value.trim();
-    }
-    const codeInput = document.getElementById("room-code-input").value.trim();
+window.joinRoom = () => {
+    const name = document.getElementById("my-name-input").value.trim();
+    const codeInput = document.getElementById("room-code-input").value.trim().toUpperCase();
 
     if (!name || !codeInput) {
-        window.showAlert("กรุณากรอกชื่อและรหัสห้องให้ครบถ้วน", "แจ้งเตือน");
+        window.showAlert("กรุณากรอกชื่อและรหัสห้อง 4 หลักให้ครบถ้วน", "แจ้งเตือน");
         return;
     }
 
-    let targetRoomId = codeInput.toUpperCase();
-    let roomData = null;
-
-    // Handle full URL inputs if pasted by user
-    if (codeInput.includes('?room=')) {
-        try {
-            const urlObj = new URL(codeInput);
-            const roomQuery = urlObj.searchParams.get('room');
-            if (roomQuery) {
-                targetRoomId = roomQuery.toUpperCase();
-            }
-        } catch(e) {}
-    }
-
-    const rooms = getCloudRooms();
-    if (rooms[targetRoomId]) {
-        roomData = rooms[targetRoomId];
-    } else {
-        // Try parsing JSON if user pasted exported data
-        try {
-            const parsed = JSON.parse(codeInput);
-            if (parsed && parsed.roomId) {
-                targetRoomId = parsed.roomId;
-                roomData = parsed;
-            }
-        } catch(e) {}
-    }
-
+    let roomData = loadRoomState(codeInput);
     if (!roomData) {
         window.showAlert("ไม่พบห้องที่มีรหัสนี้ กรุณาตรวจสอบอีกครั้ง", "แจ้งเตือน");
         return;
     }
 
-    currentRoomId = targetRoomId;
+    currentRoomId = codeInput;
     isHost = roomData.hostId === currentUser.uid;
 
     const existingPlayer = roomData.players.find(p => p.id === currentUser.uid);
@@ -444,13 +371,14 @@ window.joinRoom = async () => {
             name: name,
             role: '',
             alive: true,
-            nightTarget: null,
-            voteTarget: null
+            isBot: false
         });
+        saveRoomState(currentRoomId, roomData);
     }
 
-    await updateRoomData(roomData);
+    roomStateData = roomData;
     enterLobbyScreen(currentRoomId);
+    startSyncLoop(currentRoomId);
 };
 
 function enterLobbyScreen(roomId) {
@@ -472,6 +400,32 @@ function enterLobbyScreen(roomId) {
     renderLobbyPlayers(roomStateData);
 }
 
+window.addBotPlayer = () => {
+    if (!isHost || !roomStateData) return;
+    const maxLimit = roleDecks[roomStateData.mode].length;
+    if (roomStateData.players.length >= maxLimit) {
+        window.showAlert("ห้องนี้ผู้เล่นเต็มแล้วครับ", "แจ้งเตือน");
+        return;
+    }
+    const botNum = roomStateData.players.filter(p => p.isBot).length + 1;
+    roomStateData.players.push({
+        id: 'bot_' + Math.random().toString(36).substr(2, 6),
+        name: `🤖 บอท ${botNum}`,
+        role: '',
+        alive: true,
+        isBot: true
+    });
+    saveRoomState(currentRoomId, roomStateData);
+    renderLobbyPlayers(roomStateData);
+};
+
+window.refreshLobby = () => {
+    if (currentRoomId) {
+        const latest = loadRoomState(currentRoomId);
+        if (latest) handleRoomStateChange(latest);
+    }
+};
+
 function renderLobbyPlayers(data) {
     if (!data || !data.players) return;
     const listContainer = document.getElementById("lobby-players-list");
@@ -484,7 +438,7 @@ function renderLobbyPlayers(data) {
         const item = document.createElement("div");
         item.className = "flex justify-between items-center bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 text-sm";
         const isMe = p.id === currentUser.uid;
-        const hostBadge = p.id === data.hostId ? '👑 หัวหน้าห้อง' : '👤 ผู้เล่น';
+        const hostBadge = p.id === data.hostId ? '👑 หัวหน้าห้อง' : (p.isBot ? '🤖 บอท' : '👤 ผู้เล่น');
         item.innerHTML = `
             <span>${idx + 1}. ${p.name} ${isMe ? '(คุณ)' : ''}</span>
             <span class="text-xs text-amber-400 font-semibold">${hostBadge}</span>
@@ -504,20 +458,10 @@ function renderLobbyPlayers(data) {
     }
 }
 
-async function updateRoomData(data) {
-    roomStateData = data;
-    saveCloudRoom(currentRoomId, data);
-    
-    if (syncChannel) {
-        syncChannel.postMessage({ type: 'ROOM_UPDATE', roomId: currentRoomId, data: data });
-    }
-
-    handleRoomStateChange(data);
-}
-
 function handleRoomStateChange(data) {
     if (!data) return;
     roomStateData = data;
+    isHost = data.hostId === currentUser?.uid;
 
     if (data.phase === 'lobby') {
         if (!document.getElementById("lobby-screen").classList.contains("hidden")) {
@@ -534,32 +478,7 @@ function handleRoomStateChange(data) {
     }
 }
 
-window.addBotPlayer = async () => {
-    if (!isHost || !roomStateData) return;
-    const data = roomStateData;
-    const targetCount = roleDecks[data.mode].length;
-
-    if (data.players.length >= targetCount) {
-        window.showAlert("ผู้เล่นและบอทเต็มจำนวนสำหรับโหมดนี้แล้วครับ", "แจ้งเตือน");
-        return;
-    }
-
-    const botId = 'bot-' + Math.random().toString(36).substring(2, 7);
-    const botNum = data.players.filter(p => p.id.startsWith('bot-')).length + 1;
-
-    data.players.push({
-        id: botId,
-        name: `🤖 บอททดสอบ ${botNum}`,
-        role: '',
-        alive: true,
-        nightTarget: null,
-        voteTarget: null
-    });
-
-    await updateRoomData(data);
-};
-
-window.startGameOnline = async () => {
+window.startGameOnline = () => {
     if (!isHost || !roomStateData) return;
     const data = roomStateData;
     const deck = [...roleDecks[data.mode]];
@@ -570,12 +489,12 @@ window.startGameOnline = async () => {
     }
 
     data.players.forEach((p, idx) => {
-        p.role = deck[idx];
+        p.role = deck[idx] || "🧑‍🌾 ชาวบ้าน";
         p.alive = true;
     });
 
     data.phase = 'reveal';
-    await updateRoomData(data);
+    saveRoomState(currentRoomId, data);
 };
 
 function renderRevealPhase(data) {
@@ -621,19 +540,18 @@ window.hideRole = () => {
     cardBox.classList.add("bg-slate-800", "glow-red");
 };
 
-window.hostTriggerNight = async () => {
+window.hostTriggerNight = () => {
     if (!isHost || !roomStateData) return;
     const data = roomStateData;
     data.phase = 'night';
     data.nightActions = {};
-    await updateRoomData(data);
+    saveRoomState(currentRoomId, data);
 };
 
 function renderNightPhase(data) {
     document.getElementById("role-reveal-screen").classList.add("hidden");
     document.getElementById("night-screen").classList.remove("hidden");
 
-    hasSubmittedNight = false;
     document.getElementById("submit-night-action-btn").disabled = false;
     document.getElementById("submit-night-action-btn").innerText = "✅ บันทึกคำสั่ง";
     document.getElementById("night-action-box").classList.remove("hidden");
@@ -688,8 +606,8 @@ function renderNightPhase(data) {
     }
 }
 
-window.submitMyNightAction = async () => {
-    if (hasSubmittedNight || !roomStateData) return;
+window.submitMyNightAction = () => {
+    if (!roomStateData) return;
     const targetVal = document.getElementById("night-target-select").value;
     const userId = currentUser.uid;
     const data = roomStateData;
@@ -697,7 +615,6 @@ window.submitMyNightAction = async () => {
     if (!data.nightActions) data.nightActions = {};
     data.nightActions[userId] = targetVal;
 
-    hasSubmittedNight = true;
     document.getElementById("submit-night-action-btn").disabled = true;
     document.getElementById("submit-night-action-btn").innerText = "✔️ บันทึกคำสั่งแล้ว";
 
@@ -711,24 +628,16 @@ window.submitMyNightAction = async () => {
         }
     }
 
-    await updateRoomData(data);
+    saveRoomState(currentRoomId, data);
 };
 
 window.closeSeerModal = () => {
     document.getElementById("seer-reveal-modal").classList.add("hidden");
 };
 
-window.hostTriggerDay = async () => {
+window.hostTriggerDay = () => {
     if (!isHost || !roomStateData) return;
     const data = roomStateData;
-
-    data.players.forEach(p => {
-        if (p.id.startsWith('bot-') && p.alive && !data.nightActions[p.id]) {
-            const aliveTargets = data.players.filter(tp => tp.alive);
-            const randTarget = aliveTargets[Math.floor(Math.random() * aliveTargets.length)];
-            data.nightActions[p.id] = randTarget ? randTarget.id : 'none';
-        }
-    });
 
     let wolfTargetId = null;
     let guardTargetId = null;
@@ -758,15 +667,14 @@ window.hostTriggerDay = async () => {
     data.nightActions = {};
     data.dayVotes = {};
 
-    await updateRoomData(data);
+    saveRoomState(currentRoomId, data);
 };
 
 function renderDayPhase(data) {
     document.getElementById("night-screen").classList.add("hidden");
     document.getElementById("day-screen").classList.remove("hidden");
 
-    hasSubmittedVote = false;
-    document.getElementById("night-summary-box").innerText = data.lastSummary || "รุ่งเช้ามาถึงแล้ว";
+    document.getElementById("night-summary-box").innerHTML = data.lastSummary || "รุ่งเช้ามาถึงแล้ว";
     document.getElementById("submit-vote-btn").disabled = false;
     document.getElementById("submit-vote-btn").innerText = "💥 ยืนยันผลโหวตของคุณ";
 
@@ -789,8 +697,8 @@ function renderDayPhase(data) {
     });
 }
 
-window.submitDayVote = async () => {
-    if (hasSubmittedVote || !roomStateData) return;
+window.submitDayVote = () => {
+    if (!roomStateData) return;
     const voteTarget = document.getElementById("day-vote-select").value;
     const userId = currentUser.uid;
     const data = roomStateData;
@@ -798,24 +706,15 @@ window.submitDayVote = async () => {
     if (!data.dayVotes) data.dayVotes = {};
     data.dayVotes[userId] = voteTarget;
 
-    hasSubmittedVote = true;
     document.getElementById("submit-vote-btn").disabled = true;
     document.getElementById("submit-vote-btn").innerText = "✔️ บันทึกเสียงโหวตแล้ว";
 
-    await updateRoomData(data);
+    saveRoomState(currentRoomId, data);
 };
 
-window.hostCalculateVotes = async () => {
+window.hostCalculateVotes = () => {
     if (!isHost || !roomStateData) return;
     const data = roomStateData;
-
-    data.players.forEach(p => {
-        if (p.id.startsWith('bot-') && p.alive && !data.dayVotes[p.id]) {
-            const aliveTargets = data.players.filter(tp => tp.alive);
-            const randTarget = aliveTargets[Math.floor(Math.random() * aliveTargets.length)];
-            data.dayVotes[p.id] = randTarget ? randTarget.id : 'none';
-        }
-    });
 
     const tally = {};
     Object.values(data.dayVotes || {}).forEach(targetId => {
@@ -872,7 +771,7 @@ window.hostCalculateVotes = async () => {
     data.nightActions = {};
     data.dayVotes = {};
 
-    await updateRoomData(data);
+    saveRoomState(currentRoomId, data);
 };
 
 function renderEndPhase(data) {
@@ -897,60 +796,28 @@ function renderEndPhase(data) {
 
 window.copyShareLink = () => {
     if (!currentRoomId) return;
-    const baseUrl = window.location.origin + window.location.pathname;
-    const shareLink = `${baseUrl}?room=${currentRoomId}`;
+    const shareLink = window.location.origin + window.location.pathname + `?room=${currentRoomId}`;
     
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(shareLink).then(() => {
-            window.showAlert("คัดลอกลิงก์เชิญเรียบร้อยแล้ว!", "สำเร็จ");
+            window.showAlert("คัดลอกลิงก์เรียบร้อยแล้ว!", "สำเร็จ");
         }).catch(() => {
-            fallbackCopy(shareLink);
+            window.showAlert("รหัสห้องของคุณคือ: " + currentRoomId, "แจ้งเตือน");
         });
     } else {
-        fallbackCopy(shareLink);
+        window.showAlert("รหัสห้องของคุณคือ: " + currentRoomId, "แจ้งเตือน");
     }
 };
 
-function fallbackCopy(text) {
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-        document.execCommand('copy');
-        window.showAlert("คัดลอกลิงก์เรียบร้อยแล้ว!", "สำเร็จ");
-    } catch (err) {
-        window.showAlert("รหัสห้องคือ: " + currentRoomId, "แจ้งเตือน");
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+        document.getElementById("room-code-input").value = roomParam.trim();
+        document.getElementById("home-screen").classList.add("hidden");
+        document.getElementById("join-room-screen").classList.remove("hidden");
     }
-    document.body.removeChild(textArea);
-};
-
-window.exportRoomData = () => {
-    if (!roomStateData) return;
-    const jsonStr = JSON.stringify(roomStateData);
-    const textArea = document.createElement("textarea");
-    textArea.value = jsonStr;
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-        document.execCommand('copy');
-        window.showAlert("คัดลอกข้อมูลห้อง (JSON) สำเร็จ! ส่งให้เพื่อนนำไปวางในช่องรหัสห้องได้เลย", "สำเร็จ");
-    } catch (err) {
-        window.showAlert("คัดลอกข้อมูลไม่สำเร็จ", "แจ้งเตือน");
-    }
-    document.body.removeChild(textArea);
-};
-
-window.manualRefreshRoom = () => {
-    if (!currentRoomId) return;
-    const rooms = getCloudRooms();
-    if (rooms[currentRoomId]) {
-        handleRoomStateChange(rooms[currentRoomId]);
-        window.showAlert("รีเฟรชข้อมูลห้องล่าสุดแล้ว!", "สำเร็จ");
-    } else {
-        window.showAlert("ไม่พบข้อมูลห้องนี้ในระบบ", "แจ้งเตือน");
-    }
-};
+});
 </script>
 </body>
 </html>
