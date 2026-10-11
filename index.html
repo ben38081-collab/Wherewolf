@@ -337,7 +337,6 @@
     let roomData = null;
     let unsubscribeRoom = null;
     
-    // โหลดหรือสร้างรหัสประจำตัวผู้ใช้ (Persistent User ID) เพื่อป้องกันไอดีเปลี่ยนเมื่อรีเฟรช
     let myUserId = localStorage.getItem('werewolf_user_id');
     if (!myUserId) {
         myUserId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -669,13 +668,13 @@
         if(!roomData || roomData.hostId !== myUserId) return;
         roomData.status = 'night';
         roomData.nightState.step = 1;
-        checkAndSkipBotOrDeadNightSteps();
+        processNightStepByHost();
         await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
     }
 
-    function checkAndSkipBotOrDeadNightSteps() {
+    function processNightStepByHost() {
         if(!roomData || roomData.hostId !== myUserId) return;
-        const step = roomData.nightState.step;
+        let step = roomData.nightState.step;
         if(step > 3) return;
 
         let activePlayer = null;
@@ -687,17 +686,49 @@
             activePlayer = roomData.players.find(p => p.role.includes("บอดี้การ์ด"));
         }
 
-        // หากบทบาทนั้นเป็นบอท หรือไม่มีชีวิตอยู่ (ตายไปแล้ว) ให้ Host สั่งข้ามสเตปให้อัตโนมัติทันทีอย่างแนบเนียน
-        if(!activePlayer || activePlayer.isBot || !activePlayer.alive) {
-            if(step === 1) {
-                roomData.nightState.killed = null;
-            } else if(step === 2) {
-                roomData.nightState.seerResult = null;
-            } else if(step === 3) {
-                roomData.nightState.protected = null;
-            }
+        // หากบทบาทนั้นไม่มีชีวิตอยู่ (ตายไปแล้ว) ให้ข้ามสเตป
+        if(!activePlayer || !activePlayer.alive) {
+            if(step === 1) roomData.nightState.killed = null;
+            else if(step === 2) roomData.nightState.seerResult = null;
+            else if(step === 3) roomData.nightState.protected = null;
             roomData.nightState.step++;
-            checkAndSkipBotOrDeadNightSteps();
+            processNightStepByHost();
+            return;
+        }
+
+        // หากผู้ถือบทบาทเป็นบอท ให้บอทตัดสินใจอัตโนมัติทันที
+        if(activePlayer.isBot) {
+            if(step === 1) {
+                // หมาป่าบอทเลือกเหยื่อที่เป็นคนหรือบอทฝั่งตรงข้าม
+                const targets = roomData.players.filter(p => p.alive && !p.role.includes("หมาป่า"));
+                if(targets.length > 0) {
+                    const chosen = targets[Math.floor(Math.random() * targets.length)];
+                    roomData.nightState.killed = chosen.id;
+                }
+                roomData.nightState.step = 2;
+                processNightStepByHost();
+            } else if(step === 2) {
+                // ผู้หยั่งรู้บอทตรวจสอบ
+                const targets = roomData.players.filter(p => p.alive && p.id !== activePlayer.id);
+                if(targets.length > 0) {
+                    const chosen = targets[Math.floor(Math.random() * targets.length)];
+                    const isWolf = chosen.role.includes("หมาป่า");
+                    roomData.nightState.seerResult = `ผู้เล่น ${chosen.name} คือ: ${isWolf ? '🐺 หมาป่า!' : '🧑‍🌾 ผู้บริสุทธิ์'}`;
+                }
+                roomData.nightState.step = 3;
+                processNightStepByHost();
+            } else if(step === 3) {
+                // บอดี้การ์ดบอทเลือกคุ้มกัน
+                const targets = roomData.players.filter(p => p.alive && p.id !== roomData.nightState.lastProtected);
+                if(targets.length > 0) {
+                    const chosen = targets[Math.floor(Math.random() * targets.length)];
+                    roomData.nightState.protected = chosen.id;
+                    roomData.nightState.lastProtected = chosen.id;
+                } else {
+                    roomData.nightState.protected = null;
+                }
+                roomData.nightState.step = 4;
+            }
         }
     }
 
@@ -724,12 +755,11 @@
             roomData.nightState.lastProtected = roomData.nightState.protected;
             roomData.nightState.step = 4;
         } else {
-            // สำหรับผู้เล่นที่เสียชีวิตแต่ยังมีบทบาทพิเศษ กดผ่าน
             roomData.nightState.step++;
         }
 
         if(roomData.hostId === myUserId) {
-            checkAndSkipBotOrDeadNightSteps();
+            processNightStepByHost();
         }
 
         await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
@@ -763,6 +793,16 @@
         roomData.nightSummaryText = died ? `💀 เมื่อคืนนี้ ${victimName} ถูกหมาป่าสังหารเสียชีวิต!` : `☀️ เมื่อคืนนี้ปลอดภัย ไม่มีใครเสียชีวิต (${victimName})`;
         roomData.votes = {};
 
+        // ให้บอทที่ยังมีชีวิตอยู่ทำการโหวตอัตโนมัติล่วงหน้าทันที
+        if(!roomData.votes) roomData.votes = {};
+        roomData.players.filter(p => p.alive && p.isBot).forEach(bot => {
+            const candidates = roomData.players.filter(p => p.alive && p.id !== bot.id);
+            if(candidates.length > 0) {
+                const rand = candidates[Math.floor(Math.random() * candidates.length)];
+                roomData.votes[bot.id] = rand.id;
+            }
+        });
+
         if(checkWinCondition()) return;
 
         await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
@@ -772,14 +812,6 @@
         const val = document.getElementById('day-vote-select').value;
         if(!roomData.votes) roomData.votes = {};
         roomData.votes[myUserId] = val;
-
-        roomData.players.filter(p => p.alive && p.isBot).forEach(bot => {
-            const candidates = roomData.players.filter(p => p.alive && p.id !== bot.id);
-            if(candidates.length > 0) {
-                const rand = candidates[Math.floor(Math.random() * candidates.length)];
-                roomData.votes[bot.id] = rand.id;
-            }
-        });
 
         await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
         window.showModal("สำเร็จ", "บันทึกผลโหวตของคุณแล้ว");
@@ -854,7 +886,7 @@
         roomData.status = 'night';
         roomData.nightState.step = 1;
         roomData.votes = {};
-        checkAndSkipBotOrDeadNightSteps();
+        processNightStepByHost();
         await setDoc(doc(db, "werewolf_rooms", currentRoomId), roomData);
     }
 
@@ -951,8 +983,9 @@
         list.innerHTML = "";
         data.players.forEach(p => {
             let hostBadge = p.id === data.hostId ? ' <span class="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded border border-amber-500/30">Host</span>' : '';
+            let botBadge = p.isBot ? ' <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30">Bot</span>' : '';
             list.innerHTML += `<div class="bg-slate-900 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center text-xs">
-                <span>👤 ${p.name}${hostBadge}</span>
+                <span>👤 ${p.name}${hostBadge}${botBadge}</span>
             </div>`;
         });
         document.getElementById('player-count-badge').innerText = `${data.players.length}/${data.maxPlayers}`;
