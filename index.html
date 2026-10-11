@@ -275,6 +275,13 @@ let unsubscribeRoom = null;
 let hasSubmittedNight = false;
 let hasSubmittedVote = false;
 
+function triggerLocalUpdate() {
+    const localRooms = getLocalRooms();
+    if (currentRoomId && localRooms[currentRoomId]) {
+        handleRoomStateChange(localRooms[currentRoomId]);
+    }
+}
+
 const roleDecks = {
     mode1: ["🐺 หมาป่า", "🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน"],
     mode2: ["🐺 หมาป่า", "👁️ ผู้หยั่งรู้", "🛡️ บอดี้การ์ด", "🧑‍🌾 ชาวบ้าน", "🧑‍🌾 ชาวบ้าน", "🪵 ยาจก"],
@@ -327,6 +334,26 @@ window.showCreateRoomOptions = () => {
 window.showJoinRoomOptions = () => {
     document.getElementById("home-screen").classList.add("hidden");
     document.getElementById("join-room-screen").classList.remove("hidden");
+};
+
+window.showLobbyUI = () => {
+    document.getElementById("home-screen").classList.add("hidden");
+    document.getElementById("create-room-screen").classList.add("hidden");
+    document.getElementById("join-room-screen").classList.add("hidden");
+    document.getElementById("lobby-screen").classList.remove("hidden");
+    const hostControls = document.getElementById("host-controls");
+    const guestWaitingMsg = document.getElementById("guest-waiting-msg");
+    if (hostControls && guestWaitingMsg) {
+        if (isHost) {
+            hostControls.classList.remove("hidden");
+            guestWaitingMsg.classList.add("hidden");
+            document.getElementById("display-room-code").innerText = currentRoomId;
+        } else {
+            hostControls.classList.add("hidden");
+            guestWaitingMsg.classList.remove("hidden");
+            document.getElementById("display-room-code").innerText = currentRoomId;
+        }
+    }
 };
 
 window.backToHome = () => {
@@ -463,7 +490,7 @@ window.joinRoom = async () => {
 
         isHost = data.hostId === userId;
         subscribeToRoom();
-        showLobbyUI();
+        window.showLobbyUI();
     } catch(err) {
         console.error("Join room error:", err);
         window.showAlert("เกิดข้อผิดพลาดในการเข้าร่วมห้อง: " + err.message);
