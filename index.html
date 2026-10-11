@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Werewolf Online Game - Fix Connection</title>
+    <title>Werewolf Online Game - Fix Join Room Name</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -30,7 +30,7 @@
         <h1 class="text-3xl font-extrabold text-amber-400 tracking-wide flex items-center justify-center gap-2">
             🐺 Werewolf Online
         </h1>
-        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์เสถียร / รองรับการแชร์ลิงก์ห้องทันที</p>
+        <p class="text-xs text-slate-400 mt-1">ระบบออนไลน์เสถียร / รองรับการเล่นทุกอุปกรณ์</p>
     </div>
 
     <!-- Custom Modal for Notifications -->
@@ -48,7 +48,7 @@
     <div id="home-screen" class="space-y-4">
         <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
             <label class="block text-sm font-semibold text-amber-300 mb-2">👤 ชื่อผู้เล่นของคุณ:</label>
-            <input type="text" id="my-name-input" placeholder="กรอกชื่อของคุณ" 
+            <input type="text" id="my-name-input" placeholder="กรอกชื่อของคุณที่นี่" 
                    class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-white focus:outline-none focus:border-amber-400">
         </div>
 
@@ -83,10 +83,17 @@
 
     <!-- Join Room Sub-screen -->
     <div id="join-room-screen" class="hidden space-y-4">
-        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
-            <label class="block text-sm font-semibold text-amber-300 mb-2">🔑 กรอกรหัสห้อง 4 หลัก หรือรหัสซิงค์:</label>
-            <input type="text" id="room-code-input" placeholder="เช่น 1234 หรือรหัสห้อง" 
-                   class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-2xl font-mono text-amber-400 uppercase tracking-widest focus:outline-none focus:border-amber-400">
+        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 space-y-3">
+            <div>
+                <label class="block text-sm font-semibold text-amber-300 mb-1">👤 ตั้งชื่อของคุณในเกมนี้:</label>
+                <input type="text" id="join-name-input" placeholder="กรอกชื่อของคุณ" 
+                       class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-center text-white focus:outline-none focus:border-amber-400">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-amber-300 mb-1">🔑 รหัสห้อง 4 หลัก หรือรหัสซิงค์:</label>
+                <input type="text" id="room-code-input" placeholder="เช่น 1234" 
+                       class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-center text-2xl font-mono text-amber-400 uppercase tracking-widest focus:outline-none focus:border-amber-400">
+            </div>
         </div>
 
         <button onclick="joinRoom()" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold rounded-xl shadow-lg transition">
@@ -105,13 +112,12 @@
             
             <div class="pt-2 space-y-2">
                 <button onclick="copyShareLink()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2">
-                    🔗 คัดลอกลิงก์เชิญเพื่อน (ส่งเข้าไลน์/แชท)
+                    🔗 คัดลอกลิงก์เชิญเพื่อน
                 </button>
                 <button onclick="exportRoomData()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-amber-300 font-semibold rounded-xl text-xs transition">
-                    📤 สำรองข้อมูลห้อง (กรณีลิงก์เปิดไม่ติด)
+                    📤 สำรองข้อมูลห้อง
                 </button>
             </div>
-            <p class="text-[11px] text-slate-400">แชร์ลิงก์นี้ให้เพื่อนเปิด หรือให้เพื่อนพิมพ์รหัสห้อง 4 หลัก</p>
         </div>
 
         <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
@@ -124,7 +130,7 @@
 
         <div id="host-controls" class="hidden space-y-2">
             <button id="add-bot-btn" onclick="addBotPlayer()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 font-semibold rounded-xl text-xs text-amber-300 transition">
-                🤖 เพิ่มบอททดสอบ (กรณีเล่นทดลอง)
+                🤖 เพิ่มบอททดสอบ
             </button>
             <button id="start-game-btn" onclick="startGameOnline()" disabled 
                     class="w-full py-3.5 bg-emerald-600 disabled:opacity-50 disabled:bg-slate-700 font-bold rounded-xl shadow-lg transition">
@@ -139,7 +145,7 @@
     <!-- Screen 3: Role Reveal Screen -->
     <div id="role-reveal-screen" class="hidden space-y-4 text-center">
         <h2 class="text-xl font-bold text-amber-300">🃏 บทบาทของคุณ</h2>
-        <p class="text-xs text-slate-400">แตะค้างที่การ์ดเพื่อดูบทบาทของคุณ (ห้ามให้คนอื่นเห็น)</p>
+        <p class="text-xs text-slate-400">แตะค้างที่การ์ดเพื่อดูบทบาทของคุณ</p>
         
         <div id="my-card-box" class="card-box bg-slate-800 border-2 border-dashed border-rose-500 rounded-2xl p-8 text-xl font-bold cursor-pointer glow-red min-h-[140px] flex items-center justify-center transition"
              onmousedown="revealRole()" onmouseup="hideRole()" ontouchstart="revealRole()" ontouchend="hideRole()">
@@ -150,7 +156,7 @@
 
         <div id="host-night-start-btn" class="hidden pt-2">
             <button onclick="hostTriggerNight()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl transition">
-                🌙 ทุกคนรู้บทบาทแล้ว -> สั่งเข้าสู่ช่วงกลางคืน
+                🌙 เข้าสู่ช่วงกลางคืน
             </button>
         </div>
         <div id="guest-night-waiting" class="text-xs text-slate-400 pt-2 animate-pulse">
@@ -321,7 +327,6 @@ async function initAuth() {
     }
 }
 
-// ตรวจสอบ URL เมื่อเปิดเว็บ ว่ามีรหัสห้องหรือข้อมูลซิงค์ติดมาด้วยไหม
 window.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
@@ -334,7 +339,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 saveLocalRoom(decodedData.code, decodedData);
                 document.getElementById("room-code-input").value = decodedData.code;
                 window.showJoinRoomOptions();
-                window.showAlert("นำเข้าข้อมูลห้องสำเร็จ! กด 'เข้าห้องเกม' ได้ทันที", "สำเร็จ");
+                window.showAlert("นำเข้าข้อมูลห้องสำเร็จ! กรุณากรอกชื่อแล้วกด 'เข้าห้องเกม' ครับ", "สำเร็จ");
                 return;
             }
         } catch(err) {}
@@ -354,7 +359,7 @@ window.copyShareLink = () => {
     
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(shareUrl).then(() => {
-            window.showAlert("คัดลอกลิงก์ซิงค์สมบูรณ์แบบสำเร็จ! ส่งให้เพื่อนเปิดในไลน์หรือแชท เพื่อนจะเข้าห้องได้ทันทีแน่นอนครับ", "คัดลอกสำเร็จ");
+            window.showAlert("คัดลอกลิงก์สำเร็จ! ส่งให้เพื่อนเปิดในไลน์หรือแชทได้ทันทีครับ", "คัดลอกสำเร็จ");
         }).catch(() => {
             fallbackCopy(shareUrl);
         });
@@ -389,6 +394,10 @@ window.showCreateRoomOptions = () => {
 };
 
 window.showJoinRoomOptions = () => {
+    const homeName = document.getElementById("my-name-input").value.trim();
+    if (homeName) {
+        document.getElementById("join-name-input").value = homeName;
+    }
     document.getElementById("home-screen").classList.add("hidden");
     document.getElementById("join-room-screen").classList.remove("hidden");
 };
@@ -420,8 +429,8 @@ window.backToHome = () => {
 };
 
 window.createRoom = async () => {
-    const nameInput = document.getElementById("my-name-input");
-    const name = nameInput.value.trim() || "ผู้เล่น 1";
+    const nameInput = document.getElementById("my-name-input").value.trim();
+    const name = nameInput || "ผู้เล่น 1 (หัวหน้า)";
     
     const createBtn = document.getElementById("create-btn");
     createBtn.disabled = true;
@@ -478,11 +487,14 @@ window.createRoom = async () => {
 };
 
 window.joinRoom = async () => {
-    const name = document.getElementById("my-name-input").value.trim() || "ผู้เล่นใหม่";
+    const joinNameInput = document.getElementById("join-name-input").value.trim();
+    const homeNameInput = document.getElementById("my-name-input").value.trim();
+    const name = joinNameInput || homeNameInput || `ผู้เล่น (${Math.random().toString(36).substring(2, 6).toUpperCase()})`;
+
     const rawInput = document.getElementById("room-code-input").value.trim();
     
     if (!rawInput) {
-        window.showAlert("กรุณากรอกรหัสห้อง 4 หลักหรือวางข้อมูลห้องก่อนครับ");
+        window.showAlert("กรุณากรอกรหัสห้อง 4 หลักก่อนครับ");
         return;
     }
 
@@ -492,7 +504,6 @@ window.joinRoom = async () => {
 
         let data = null;
 
-        // ตรวจสอบว่าผู้ใช้กรอกเป็น JSON ยาวๆ หรือรหัสห้อง 4 หลัก
         if (rawInput.startsWith("{")) {
             try {
                 data = JSON.parse(rawInput);
@@ -522,18 +533,19 @@ window.joinRoom = async () => {
         }
 
         if (!data) {
-            window.showAlert("ไม่พบข้อมูลห้องนี้! แนะนำให้หัวหน้าห้องกดปุ่ม 'สำรองข้อมูลห้อง' แล้วส่งข้อความยาวให้คุณนำมาวาง หรือแชร์ลิงก์ซิงค์ใหม่ครับ", "ไม่พบห้อง");
+            window.showAlert("ไม่พบห้องนี้! โปรดตรวจสอบรหัสห้องอีกครั้ง", "ไม่พบห้อง");
             return;
         }
 
         const targetCount = roleDecks[data.mode].length;
 
         if (data.players.length >= targetCount && !data.players.some(p => p.id === userId)) {
-            window.showAlert("ห้องนี้ผู้เล่นเต็มจำนวนแล้วครับ");
+            window.showAlert("ห้องนี้ผู้เล่นเต็มแล้วครับ");
             return;
         }
 
-        if (!data.players.some(p => p.id === userId)) {
+        const existingPlayer = data.players.find(p => p.id === userId);
+        if (!existingPlayer) {
             data.players.push({
                 id: userId,
                 name: name,
@@ -542,6 +554,9 @@ window.joinRoom = async () => {
                 nightTarget: null,
                 voteTarget: null
             });
+            await updateRoomData(data);
+        } else {
+            existingPlayer.name = name;
             await updateRoomData(data);
         }
 
@@ -758,7 +773,7 @@ function renderNightPhase(data) {
     document.getElementById("host-day-start-btn").classList.add("hidden");
 
     if (!myPlayerData || !myPlayerData.alive) {
-        document.getElementById("night-action-title").innerText = "💀 คุณเสียชีวิตแล้ว (เป็นวิญญาณหลับตาดูเพื่อนเล่น)";
+        document.getElementById("night-action-title").innerText = "💀 คุณเสียชีวิตแล้ว";
         document.getElementById("night-target-select").innerHTML = `<option value="none">-- คุณเสียชีวิตแล้ว --</option>`;
         document.getElementById("submit-night-action-btn").disabled = true;
         return;
@@ -794,7 +809,7 @@ function renderNightPhase(data) {
             select.appendChild(opt);
         });
     } else {
-        document.getElementById("night-action-title").innerText = "🌙 ชาวบ้าน / ตัวละครทั่วไป -> หลับตาพักผ่อนในยามค่ำคืน";
+        document.getElementById("night-action-title").innerText = "🌙 ชาวบ้าน / ตัวละครทั่วไป -> หลับตาพักผ่อน";
         select.innerHTML = `<option value="none">-- ไม่มีแอคชันตอนกลางคืน --</option>`;
     }
 
@@ -815,7 +830,7 @@ window.submitMyNightAction = async () => {
     hasSubmittedNight = true;
     document.getElementById("submit-night-action-btn").disabled = true;
     document.getElementById("submit-night-action-btn").innerText = "✔️ บันทึกเรียบร้อยแล้ว";
-    document.getElementById("night-waiting-status").innerText = "⏳ บันทึกแล้ว รอผู้เล่นท่านอื่นให้ครบ...";
+    document.getElementById("night-waiting-status").innerText = "⏳ บันทึกแล้ว รอผู้เล่นท่านอื่น...";
 
     await updateRoomData(data);
 };
